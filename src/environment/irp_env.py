@@ -2,7 +2,49 @@ import numpy as np
 import gymnasium as gym
 
 class IRPEnv(gym.Env):
+<<<<<<< HEAD
     def __init__(self, episode_length, inventory_capacity, num_retailers, loc_dim, lookback_window, max_demand, loading_capacity, adjacency_list, min_holding_cost, max_holding_cost, supplier_initial_inventory, supplier_production_rate, supplier_holding_cost):
+=======
+    """
+    Custom Gymnasium environment for the Inventory Routing Problem (IRP)
+    under an MTPPO-style (Multi-Task PPO) CTDE architecture.
+
+    Follows a two-actor, one-critic design (Lu et al., 2025):
+      - Inventory actor: per-node continuous replenishment decisions.
+      - Routing actor: sequential discrete node-selection decisions.
+      - Critic: centralized value function evaluating the joint state
+        of both actors once per timestep, before either decision is made.
+
+    Each actor and the critic have their own observation space, since
+    they consume different subsets/views of the environment's state.
+    The critic has no action_space, since it only estimates value and
+    does not select actions.
+    """
+     
+    def __init__(self, episode_length, inventory_capacity, num_retailers, loc_dim, lookback_window, max_demand, loading_capacity, adjacency_list):
+        """
+        Args:
+            episode_length: Number of timesteps per episode (planning horizon).
+                Also referred to as T / horizon H in the source paper.
+            inventory_capacity: Max inventory level a retailer node can hold.
+                NOTE: currently applied as a single scalar bound (uniform
+                across all retailers). If per-node capacity varies (per the
+                benchmark data), this needs to become a shape-(num_retailers,)
+                array instead of a scalar.
+            num_retailers: Number of retailer nodes in the graph (excludes depot).
+            loc_dim: Dimensionality of a node's location feature (e.g. 2 for x,y).
+            lookback_window: Number of past periods included in the sliding-window
+                history features (replenishment_history, historical_demands).
+                NOTE: benchmark instances have very short horizons (e.g. H=3),
+                so this may need to be <= episode_length, or reconsidered
+                entirely for short-horizon instances.
+            max_demand: Upper bound used for demand-related Box spaces.
+            loading_capacity: Vehicle's maximum load capacity (Q in the paper).
+            adjacency_list: Fixed graph connectivity (neighbor sets per node),
+                used by the GIN layers for message passing. Assumes a fixed
+                topology for the life of this environment instance.
+        """
+>>>>>>> cd783169f680b7136b4c0df3f28b4562dca742f4
         self.episode_length = episode_length
         self.current_step = 0
         self.inventory_capacity = inventory_capacity
