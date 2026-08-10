@@ -2,26 +2,22 @@ import numpy as np
 import gymnasium as gym
 
 class IRPEnv(gym.Env):
-<<<<<<< HEAD
+    """
+        Custom Gymnasium environment for the Inventory Routing Problem (IRP)
+        under an MTPPO-style (Multi-Task PPO) CTDE architecture.
+    
+        Follows a two-actor, one-critic design (Lu et al., 2025):
+          - Inventory actor: per-node continuous replenishment decisions.
+          - Routing actor: sequential discrete node-selection decisions.
+          - Critic: centralized value function evaluating the joint state
+            of both actors once per timestep, before either decision is made.
+    
+        Each actor and the critic have their own observation space, since
+        they consume different subsets/views of the environment's state.
+        The critic has no action_space, since it only estimates value and
+        does not select actions.
+    """
     def __init__(self, episode_length, inventory_capacity, num_retailers, loc_dim, lookback_window, max_demand, loading_capacity, adjacency_list, min_holding_cost, max_holding_cost, supplier_initial_inventory, supplier_production_rate, supplier_holding_cost):
-=======
-    """
-    Custom Gymnasium environment for the Inventory Routing Problem (IRP)
-    under an MTPPO-style (Multi-Task PPO) CTDE architecture.
-
-    Follows a two-actor, one-critic design (Lu et al., 2025):
-      - Inventory actor: per-node continuous replenishment decisions.
-      - Routing actor: sequential discrete node-selection decisions.
-      - Critic: centralized value function evaluating the joint state
-        of both actors once per timestep, before either decision is made.
-
-    Each actor and the critic have their own observation space, since
-    they consume different subsets/views of the environment's state.
-    The critic has no action_space, since it only estimates value and
-    does not select actions.
-    """
-     
-    def __init__(self, episode_length, inventory_capacity, num_retailers, loc_dim, lookback_window, max_demand, loading_capacity, adjacency_list):
         """
         Args:
             episode_length: Number of timesteps per episode (planning horizon).
@@ -44,7 +40,6 @@ class IRPEnv(gym.Env):
                 used by the GIN layers for message passing. Assumes a fixed
                 topology for the life of this environment instance.
         """
->>>>>>> cd783169f680b7136b4c0df3f28b4562dca742f4
         self.episode_length = episode_length
         self.current_step = 0
         self.inventory_capacity = inventory_capacity
