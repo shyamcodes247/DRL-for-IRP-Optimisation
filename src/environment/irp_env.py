@@ -1,4 +1,5 @@
 import numpy as np
+import pandas as pd
 import gymnasium as gym
 
 class IRPEnv(gym.Env):
@@ -17,7 +18,7 @@ class IRPEnv(gym.Env):
         The critic has no action_space, since it only estimates value and
         does not select actions.
     """
-    def __init__(self, episode_length, inventory_capacity, num_retailers, loc_dim, lookback_window, max_demand, loading_capacity, adjacency_list, min_holding_cost, max_holding_cost, supplier_initial_inventory, supplier_production_rate, supplier_holding_cost):
+    def __init__(self, data_file_path, episode_length, inventory_capacity, num_retailers, loc_dim, lookback_window, max_demand, loading_capacity, adjacency_list, min_holding_cost, max_holding_cost, supplier_initial_inventory, supplier_production_rate, supplier_holding_cost):
         """
         Args:
             episode_length: Number of timesteps per episode (planning horizon).
@@ -40,6 +41,7 @@ class IRPEnv(gym.Env):
                 used by the GIN layers for message passing. Assumes a fixed
                 topology for the life of this environment instance.
         """
+        data_file_df = pd.read_csv(data_file_path, '\t')
         self.episode_length = episode_length
         self.current_step = 0
         self.inventory_capacity = inventory_capacity
@@ -90,8 +92,9 @@ class IRPEnv(gym.Env):
             }
         )
 
-    def reset(self):
-        pass
+    def reset(self, seed=None, options=None):
+        self.current_step = 0
+        self.current_inventory = self.initial_inventory.copy()
 
     def inventory_action_step(self, action):
         pass
