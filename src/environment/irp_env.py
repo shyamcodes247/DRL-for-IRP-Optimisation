@@ -1,6 +1,7 @@
 import numpy as np
 import pandas as pd
 import gymnasium as gym
+from .data_converter import convert_instance
 
 class IRPEnv(gym.Env):
     """
@@ -18,7 +19,7 @@ class IRPEnv(gym.Env):
         The critic has no action_space, since it only estimates value and
         does not select actions.
     """
-    def __init__(self, data_file_path, episode_length, inventory_capacity, num_retailers, loc_dim, lookback_window, max_demand, loading_capacity, adjacency_list, min_holding_cost, max_holding_cost, supplier_initial_inventory, supplier_production_rate, supplier_holding_cost):
+    def __init__(self, data_file_path, inventory_capacity, loc_dim, lookback_window, max_demand, adjacency_list, min_holding_cost, max_holding_cost):
         """
         Args:
             episode_length: Number of timesteps per episode (planning horizon).
@@ -41,66 +42,121 @@ class IRPEnv(gym.Env):
                 used by the GIN layers for message passing. Assumes a fixed
                 topology for the life of this environment instance.
         """
-        data_file_df = pd.read_csv(data_file_path, '\t')
-        self.episode_length = episode_length
-        self.current_step = 0
-        self.inventory_capacity = inventory_capacity
-        self.num_retailers = num_retailers
+        params, supplier, retailers = convert_instance(data_file_path).values()
+        self.episode_length = params["episode_length"]
+        self.num_retailers = params["num_nodes"]
+        self.vehicle_capacity = params["vehicle_capacity"]
+        self.retailers_initial_inventory = retailers["initial_inventory"].to_numpy()
+        self.retailer_min_capacity = retailers["min_capacity"].to_numpy()
+        self.retailer_max_capacity = retailers["max_capacity"].to_numpy() # does that mean replenishments are always between 0 and max - min capacity
+        self.location = retailers[["x_cord", "y_cord"]].to_numpy()
+        self.demand = retailers["demand"].to_numpy()
+        self.holding_cost = retailers["holding_cost"].to_numpy() # is holding_cost and demand constant for data here?
+        self.depot_location = np.array([[supplier["x_cord"], supplier["y_cord"]]])
+        self.depot_initial_inventory = supplier["initial_inventory"]
+        self.depot_production_rate = supplier["production_rate"]
+        self.depot_holding_cost = supplier["holding_cost"]
         self.loc_dim = loc_dim
         self.lookback_window = lookback_window
-        self.max_demand = max_demand
-        self.loading_capacity = loading_capacity
+        # need to implement this myself (since we have a complete graph)
         self.adjacency_list = adjacency_list
-        self.supplier_initial_inventory = supplier_initial_inventory
-        self.supplier_production_rate = supplier_production_rate
-        self.supplier_holding_cost = supplier_holding_cost
         self.inventory_observation_space = gym.spaces.Dict(
             {
-                "location": gym.spaces.Box(low=-np.inf, high=np.inf, shape=(num_retailers + 1, loc_dim), dtype=np.float32),
-                "current_inventory": gym.spaces.Box(low=0, high=inventory_capacity, shape=(num_retailers,), dtype=np.float32),
-                "current_demand": gym.spaces.Box(low=0, high=max_demand, shape=(num_retailers,), dtype=np.float32),
-                "holding_cost": gym.spaces.Box(low=min_holding_cost, high=max_holding_cost, shape=(num_retailers,), dtype=np.float32),
-                "replenishment_history": gym.spaces.Box(low=0, high=inventory_capacity, shape=(num_retailers, lookback_window), dtype=np.float32),
-                "historical_demands": gym.spaces.Box(low=0, high=max_demand, shape=(num_retailers, lookback_window), dtype=np.float32)
+                "location": gym.spaces.Box(low=-np.inf, high=np.inf, shape=(self.num_retailers + 1, loc_dim), dtype=np.float32),
+                "current_inventory": gym.spaces.Box(low=self.retailer_min_capacity, high=self.retailer_max_capacity, shape=(self.num_retailers,), dtype=np.float32),
+                # is current_demand last timestamp's demand?
+                "current_demand": gym.spaces.Box(low=0, high=max_demand, shape=(self.num_retailers,), dtype=np.float32),
+                "holding_cost": gym.spaces.Box(low=min_holding_cost, high=max_holding_cost, shape=(self.num_retailers,), dtype=np.float32),
+                "replenishment_history": gym.spaces.Box(low=0, high=inventory_capacity, shape=(self.num_retailers, lookback_window), dtype=np.float32),
+                "historical_demands": gym.spaces.Box(low=0, high=max_demand, shape=(self.num_retailers, lookback_window), dtype=np.float32)
             }
         )
-        self.inventory_action_space =  gym.spaces.Box(low=0, high=inventory_capacity, shape=(num_retailers,), dtype=np.float32)
+        self.inventory_action_space =  gym.spaces.Box(low=0, high=inventory_capacity, shape=(self.num_retailers,), dtype=np.float32)
         self.routing_observation_space = gym.spaces.Dict(
             {
-                "location": gym.spaces.Box(low=-np.inf, high=np.inf, shape=(num_retailers + 1, loc_dim), dtype=np.float32),
-                "vehicle_position": gym.spaces.Discrete(num_retailers + 1),
-                "replenishment_amount": gym.spaces.Box(low=0, high=np.inf, shape=(num_retailers, ), dtype=np.float32),
-                "current_load_capacity": gym.spaces.Box(low=0, high=loading_capacity, shape=(1,), dtype=np.float32),
-                "visited_mask": gym.spaces.MultiBinary(num_retailers + 1)
+                "location": gym.spaces.Box(low=-np.inf, high=np.inf, shape=(self.num_retailers + 1, loc_dim), dtype=np.float32),
+                "vehicle_position": gym.spaces.Discrete(self.num_retailers + 1),
+                "replenishment_amount": gym.spaces.Box(low=0, high=np.inf, shape=(self.num_retailers, ), dtype=np.float32),
+                "current_load_capacity": gym.spaces.Box(low=0, high=self.vehicle_capacity, shape=(1,), dtype=np.float32),
+                "visited_mask": gym.spaces.MultiBinary(self.num_retailers + 1)
             }
         )
-        self.routing_action_space = gym.spaces.Discrete(num_retailers + 1)
+        self.routing_action_space = gym.spaces.Discrete(self.num_retailers + 1)
         self.critic_observation_space = gym.spaces.Dict(
             {
-                "location": gym.spaces.Box(low=-np.inf, high=np.inf, shape=(num_retailers + 1, loc_dim), dtype=np.float32),
+                "location": gym.spaces.Box(low=-np.inf, high=np.inf, shape=(self.num_retailers + 1, loc_dim), dtype=np.float32),
 
                 # Inventory-side info — from inventory_observation_space
-                "current_inventory": gym.spaces.Box(low=0, high=inventory_capacity, shape=(num_retailers,), dtype=np.float32),
-                "holding_cost": gym.spaces.Box(low=min_holding_cost, high=max_holding_cost, shape=(num_retailers,), dtype=np.float32),
-                "replenishment_history": gym.spaces.Box(low=0, high=inventory_capacity, shape=(num_retailers, lookback_window), dtype=np.float32),
-                "historical_demands": gym.spaces.Box(low=0, high=max_demand, shape=(num_retailers, lookback_window), dtype=np.float32),
+                "current_inventory": gym.spaces.Box(low=self.retailer_min_capacity, high=self.retailer_max_capacity, shape=(self.num_retailers,), dtype=np.float32),
+                "holding_cost": gym.spaces.Box(low=min_holding_cost, high=max_holding_cost, shape=(self.num_retailers,), dtype=np.float32),
+                "replenishment_history": gym.spaces.Box(low=0, high=inventory_capacity, shape=(self.num_retailers, lookback_window), dtype=np.float32),
+                "historical_demands": gym.spaces.Box(low=0, high=max_demand, shape=(self.num_retailers, lookback_window), dtype=np.float32),
 
                 # Routing-side info — from routing_observation_space
-                "current_load_capacity": gym.spaces.Box(low=0, high=loading_capacity, shape=(1,), dtype=np.float32),
-                "visited_mask": gym.spaces.MultiBinary(num_retailers + 1),
-                "vehicle_position": gym.spaces.Discrete(num_retailers + 1),
+                "current_load_capacity": gym.spaces.Box(low=0, high=self.vehicle_capacity, shape=(1,), dtype=np.float32),
+                "visited_mask": gym.spaces.MultiBinary(self.num_retailers + 1),
+                "vehicle_position": gym.spaces.Discrete(self.num_retailers + 1),
             }
         )
 
     def reset(self, seed=None, options=None):
+        super().reset(seed=seed)
+        self.visited_mask = np.zeros(self.num_nodes, dtype=int)
+        self.visited_mask[0] = 1
         self.current_step = 0
-        self.current_inventory = self.initial_inventory.copy()
+        self.retailers_current_inventory = self.retailers_initial_inventory.copy()
+        self.replenishment_history = np.zeros(self.num_retailers, self.lookback_window, dtype=np.float32)
+        self.historical_demands = np.zeros((self.num_retailers, self.lookback_window), dtype=np.float32)
+        self.vehicle_position = 0
+        self.current_load_capacity = self.vehicle_capacity
+        self.route_log = []
+
+        inventory_obs = {
+            "location": self.location,
+            "current_inventory": self.retailers_current_inventory,
+            "current demand": self.demand,
+            "holding_cost": self.holding_cost,
+            "replenishment_history": self.replenishment_history,
+            "historical_demands": self.demand,
+        }
+
+        return inventory_obs
 
     def inventory_action_step(self, action):
-        pass
+        routing_obs = {
+            "location": np.vstack([self.depot_location], [self.location]),
+            "vehicle_position": self.vehicle_position,
+            "replenishment_amount": action,
+            "current_load_capacity": self.vehicle_capacity,
+            "visited_mask": self.visited_mask
+        }
+
+        r_inv = 0
+        for current_inv, unit_holding_cost in zip(self.retailers_current_inventory, self.holding_cost):
+            r_inv += current_inv * unit_holding_cost
+
+        r_inv *= -1
+        
+        return routing_obs, r_inv
     
     def routing_action_step(self, action):
         pass
         
     def render(self):
         pass
+
+    @staticmethod
+    def _get_critic_obs(self):
+        critic_obs = {
+            "location": self.location,
+            "current_inventory": self.retailers_inventory,
+            "current demand": self.demand,
+            "holding_cost": self.holding_cost,
+            "replenishment_history": self.replenishment_history,
+            "historical_demands": self.demand,
+            "current_load_capacity": self.vehicle_capacity,
+            "visited_mask": self.visited_mask,
+            "vehicle_position": self.vehicle_position
+        }
+
+        return critic_obs
