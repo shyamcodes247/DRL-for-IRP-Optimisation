@@ -109,6 +109,7 @@ class IRPEnv(gym.Env):
         self.historical_demands = np.zeros((self.num_retailers, self.lookback_window), dtype=np.float32)
         self.vehicle_position = 0
         self.current_load_capacity = self.vehicle_capacity
+        self.depot_inventory = self.depot_initial_inventory
         self.route_log = []
 
         inventory_obs = {
@@ -131,10 +132,10 @@ class IRPEnv(gym.Env):
             "visited_mask": self.visited_mask
         }
 
-        r_inv = 0
+        r_inv = self.depot_inventory * self.depot_holding_cost
         for current_inv, unit_holding_cost in zip(self.retailers_current_inventory, self.holding_cost):
             r_inv += current_inv * unit_holding_cost
-
+        
         r_inv *= -1
         
         return routing_obs, r_inv
