@@ -1,4 +1,5 @@
 import numpy as np
+import numpy.typing as npt
 import pandas as pd
 import gymnasium as gym
 from .data_converter import convert_instance
@@ -44,7 +45,7 @@ class IRPEnv(gym.Env):
         """
         params, supplier, retailers = convert_instance(data_file_path).values()
         self.episode_length = params["episode_length"]
-        self.num_retailers = params["num_nodes"]
+        self.num_retailers = params["num_nodes"] - 1 # the data file includes supplier as node
         self.vehicle_capacity = params["vehicle_capacity"]
         self.retailers_initial_inventory = retailers["initial_inventory"].to_numpy()
         self.retailer_min_capacity = retailers["min_capacity"].to_numpy()
@@ -101,10 +102,11 @@ class IRPEnv(gym.Env):
 
     def reset(self, seed=None, options=None):
         super().reset(seed=seed)
-        self.visited_mask = np.zeros(self.num_nodes, dtype=int)
+        self.visited_mask = np.zeros(self.num_retailers + 1, dtype=int)
         self.visited_mask[0] = 1
         self.current_step = 0
         self.retailers_current_inventory = self.retailers_initial_inventory.copy()
+        self.replenishment_amount = np.zeros(self.num_retailers, dtype=np.float32)
         self.replenishment_history = np.zeros(self.num_retailers, self.lookback_window, dtype=np.float32)
         self.historical_demands = np.zeros((self.num_retailers, self.lookback_window), dtype=np.float32)
         self.vehicle_position = 0
@@ -120,13 +122,28 @@ class IRPEnv(gym.Env):
             "historical_demands": self.demand,
         }
 
-        return inventory_obs
+        critic_obs = {
+            "location": np.vstack([self.depot_location], [self.location]),
+            "current_inventory": self.retailers_current_inventory,
+            "current demand": self.demand,
+            "holding_cost": self.holding_cost,
+            "replenishment_history": self.replenishment_history,
+            "historical_demands": self.demand,
+            "current_load_capacity": self.vehicle_capacity,
+            "visited_mask": self.visited_mask,
+            "vehicle_position": self.vehicle_position
+        }
+
+        info = {}
+
+        return inventory_obs, critic_obs, info
 
     def inventory_action_step(self, action):
+        self.replenishment_amount = action
         routing_obs = {
             "location": np.vstack([self.depot_location], [self.location]),
             "vehicle_position": self.vehicle_position,
-            "replenishment_amount": action,
+            "replenishment_amount": self.replenishment_amount,
             "current_load_capacity": self.vehicle_capacity,
             "visited_mask": self.visited_mask
         }
@@ -139,24 +156,60 @@ class IRPEnv(gym.Env):
         
         return routing_obs, r_inv
     
-    def routing_action_step(self, action):
-        pass
+    def routing_action_step(self, action: int):
+        node_1, node_2 = [], self.location[action - 1]
+        if self.vehicle_position == 0:
+            node_1 = self.depot_location[0]
+        elif action == 0:
+            node_2 = self.depot_location[0]
+        else:
+            node_1 = self.location[self.vehicle_position - 1]
+
+        distance_cost = self._get_distance(node_1=node_1, node_2=node_2)
+
+        self.visited_mask[action] = 1
+        self.vehicle_position = action
+        self.current_load_capacity -= self.replenishment_amount[action - 1]
+        routing_obs = {
+            "location": np.vstack([self.depot_location], [self.location]),
+            "vehicle_position": self.vehicle_position,
+            "replenishment_amount": self.replenishment_amount,
+            "current_load_capacity": self.current_load_capacity,
+            "visited_mask": self.visited_mask
+        }
+
+        r_vrp = -distance_cost
+
+        if np.all(self.visited_mask == 1):
+            self.current_step += 1
+            terminated = self.current_step >= self.episode_length
+            truncated = False
+            critic_obs = {
+                "location": np.vstack([self.depot_location], [self.location]),
+                "current_inventory": self.retailers_current_inventory,
+                "current demand": self.demand,
+                "holding_cost": self.holding_cost,
+                "replenishment_history": self.replenishment_history,
+                "historical_demands": self.demand,
+                "current_load_capacity": self.vehicle_capacity,
+                "visited_mask": self.visited_mask,
+                "vehicle_position": self.vehicle_position
+            }
+
+            info = {}
+
+            return routing_obs, r_vrp, critic_obs, terminated, truncated, info
+        else:
+            return routing_obs, r_vrp, None, False, False, {}
+        
         
     def render(self):
         pass
 
-    @staticmethod
-    def _get_critic_obs(self):
-        critic_obs = {
-            "location": self.location,
-            "current_inventory": self.retailers_inventory,
-            "current demand": self.demand,
-            "holding_cost": self.holding_cost,
-            "replenishment_history": self.replenishment_history,
-            "historical_demands": self.demand,
-            "current_load_capacity": self.vehicle_capacity,
-            "visited_mask": self.visited_mask,
-            "vehicle_position": self.vehicle_position
-        }
+    # Does critic network rely on the initial state of environment at time t?
 
-        return critic_obs
+    # Returns distance between two nodes
+    def _get_distance(self, node_1: npt.NDArray[np.float64], node_2: npt.NDArray[np.float64]):
+        return np.linalg.norm(
+            node_1 - node_2, ord=1
+        )
