@@ -107,7 +107,7 @@ class IRPEnv(gym.Env):
         self.current_step = 0
         self.retailers_current_inventory = self.retailers_initial_inventory.copy()
         self.replenishment_amount = np.zeros(self.num_retailers, dtype=np.float32)
-        self.replenishment_history = np.zeros(self.num_retailers, self.lookback_window, dtype=np.float32)
+        self.replenishment_history = np.zeros((self.num_retailers, self.lookback_window), dtype=np.float32)
         self.historical_demands = np.zeros((self.num_retailers, self.lookback_window), dtype=np.float32)
         self.vehicle_position = 0
         self.current_load_capacity = self.vehicle_capacity
@@ -116,16 +116,16 @@ class IRPEnv(gym.Env):
         inventory_obs = {
             "location": self.location,
             "current_inventory": self.retailers_current_inventory,
-            "current demand": self.demand,
+            "current_demand": self.demand,
             "holding_cost": self.holding_cost,
             "replenishment_history": self.replenishment_history,
             "historical_demands": self.demand,
         }
 
         critic_obs = {
-            "location": np.vstack([self.depot_location], [self.location]),
+            "location": np.vstack([self.depot_location, self.location]),
             "current_inventory": self.retailers_current_inventory,
-            "current demand": self.demand,
+            "current_demand": self.demand,
             "holding_cost": self.holding_cost,
             "replenishment_history": self.replenishment_history,
             "historical_demands": self.demand,
@@ -141,7 +141,7 @@ class IRPEnv(gym.Env):
     def inventory_action_step(self, action):
         self.replenishment_amount = action
         routing_obs = {
-            "location": np.vstack([self.depot_location], [self.location]),
+            "location": np.vstack([self.depot_location, self.location]),
             "vehicle_position": self.vehicle_position,
             "replenishment_amount": self.replenishment_amount,
             "current_load_capacity": self.vehicle_capacity,
@@ -157,21 +157,16 @@ class IRPEnv(gym.Env):
         return routing_obs, r_inv
     
     def routing_action_step(self, action: int):
-        node_1, node_2 = [], self.location[action - 1]
-        if self.vehicle_position == 0:
-            node_1 = self.depot_location[0]
-        elif action == 0:
-            node_2 = self.depot_location[0]
-        else:
-            node_1 = self.location[self.vehicle_position - 1]
+        node_1 = self.depot_location[0] if self.vehicle_position == 0 else self.location[self.vehicle_position - 1]
+        node_2 = self.depot_location[0] if action == 0 else self.location[action - 1]
 
         distance_cost = self._get_distance(node_1=node_1, node_2=node_2)
 
         self.visited_mask[action] = 1
         self.vehicle_position = action
-        self.current_load_capacity -= self.replenishment_amount[action - 1]
+        self.current_load_capacity = self.vehicle_capacity if action == 0 else self.current_load_capacity - self.replenishment_amount[action - 1]
         routing_obs = {
-            "location": np.vstack([self.depot_location], [self.location]),
+            "location": np.vstack([self.depot_location, self.location]),
             "vehicle_position": self.vehicle_position,
             "replenishment_amount": self.replenishment_amount,
             "current_load_capacity": self.current_load_capacity,
@@ -182,12 +177,15 @@ class IRPEnv(gym.Env):
 
         if np.all(self.visited_mask == 1):
             self.current_step += 1
+            self.visited_mask = np.zeros(self.num_retailers + 1, dtype=int)
+            self.visited_mask[0] = 1
+            self.current_load_capacity = self.vehicle_capacity
             terminated = self.current_step >= self.episode_length
             truncated = False
             critic_obs = {
-                "location": np.vstack([self.depot_location], [self.location]),
+                "location": np.vstack([self.depot_location, self.location]),
                 "current_inventory": self.retailers_current_inventory,
-                "current demand": self.demand,
+                "current_demand": self.demand,
                 "holding_cost": self.holding_cost,
                 "replenishment_history": self.replenishment_history,
                 "historical_demands": self.demand,
