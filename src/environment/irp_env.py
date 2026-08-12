@@ -209,5 +209,5 @@ class IRPEnv(gym.Env):
     # Returns distance between two nodes
     def _get_distance(self, node_1: npt.NDArray[np.float64], node_2: npt.NDArray[np.float64]):
         return np.linalg.norm(
-            node_1 - node_2, ord=1
+            node_1 - node_2, ord=2
         )
