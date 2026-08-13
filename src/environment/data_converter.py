@@ -18,7 +18,7 @@ def convert_instance(path):
         "x_cord": float(supplier_info[1]),
         "y_cord": float(supplier_info[2]),
         "initial_inventory" : float(supplier_info[3]),
-        "production rate": float(supplier_info[4]),
+        "production_rate": float(supplier_info[4]),
         "holding_cost": float(supplier_info[5])
     }
 
