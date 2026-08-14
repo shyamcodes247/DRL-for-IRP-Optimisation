@@ -64,7 +64,7 @@ class IRPEnv(gym.Env):
         self.loc_dim = loc_dim
         self.lookback_window = lookback_window
         # need to implement this myself (since we have a complete graph)
-        self.adjacency_list = adjacency_list
+        self.adjacency_list = self._create_adjacency_list(self.num_retailers + 1)
         self.delivery_cost = delivery_cost
         max_demand = np.max(self.demand, axis=1)
         min_demand = np.min(self.demand, axis=1)
@@ -263,3 +263,7 @@ class IRPEnv(gym.Env):
         history_arr = np.roll(history_arr, shift=-1, axis=1)
         history_arr[:, -1] = current_value
         return history_arr
+
+    def _create_adjacency_list(self, num_nodes):
+        return {i: [j for j in range(num_nodes) if j != i] for i in range(num_nodes)}
+        
