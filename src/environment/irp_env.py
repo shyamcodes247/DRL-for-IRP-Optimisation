@@ -20,7 +20,7 @@ class IRPEnv(gym.Env):
         The critic has no action_space, since it only estimates value and
         does not select actions.
     """
-    def __init__(self, data_file_path, loc_dim, lookback_window, adjacency_list, product_price=None, penalty_factor=None):
+    def __init__(self, data_file_path, loc_dim, lookback_window, adjacency_list, product_price=None, penalty_factor=None, delivery_cost=1):
         """
         Args:
             episode_length: Number of timesteps per episode (planning horizon).
@@ -65,7 +65,7 @@ class IRPEnv(gym.Env):
         self.lookback_window = lookback_window
         # need to implement this myself (since we have a complete graph)
         self.adjacency_list = adjacency_list
-        
+        self.delivery_cost = delivery_cost
         max_demand = np.max(self.demand, axis=1)
         min_demand = np.min(self.demand, axis=1)
         
@@ -149,6 +149,19 @@ class IRPEnv(gym.Env):
 
     def inventory_action_step(self, action):
         self.current_demand = self.demand[:, self.current_step]
+
+        # Updates the depot's inventory levels based on delivery amounts
+        self.depot_inventory += self.depot_production_rate
+        # checks if amount to be delivered exceeds the inventory amount of depot's inventory
+        if np.sum(action) > self.depot_inventory:
+            scale = self.depot_inventory / np.sum(action) 
+            action = action * scale
+        
+        # Ensures that any action that results in a break of the max_capacity of retailer is capped
+        max_delivery_allowed = self.retailer_max_capacity - self.retailers_current_inventory
+        action = np.clip(action, 0, max_delivery_allowed)
+
+        self.depot_inventory -= np.sum(action)
         self.replenishment_amount = action
         routing_obs = {
             "location": np.vstack([self.depot_location, self.location]),
@@ -157,18 +170,13 @@ class IRPEnv(gym.Env):
             "current_load_capacity": self.current_load_capacity,
             "visited_mask": self.visited_mask
         }
-
-        # Ensures that any action that results in a break of the max_capacity of retailer is capped
-        max_delivery_allowed = self.retailer_max_capacity - self.retailers_current_inventory
-        action = np.clip(action, 0, max_delivery_allowed)
             
         self.retailers_current_inventory += action
         sales_loss = self.current_demand - self.retailers_current_inventory
         sales_loss = np.maximum(sales_loss, 0)
         self.retailers_current_inventory -= self.current_demand
         self.retailers_current_inventory += sales_loss
-        
-        # TO-DO: Implement the depot inventory cost calculation
+
         r_inv = self.depot_inventory * self.depot_holding_cost
         for current_inv, unit_holding_cost in zip(self.retailers_current_inventory, self.holding_cost):
             r_inv += current_inv * unit_holding_cost
@@ -197,7 +205,7 @@ class IRPEnv(gym.Env):
             "visited_mask": self.visited_mask
         }
 
-        r_vrp = -distance_cost
+        r_vrp = -distance_cost * self.delivery_cost
 
         if np.all(self.visited_mask == 1):
             self.current_step += 1
