@@ -193,16 +193,26 @@ class IRPEnv(gym.Env):
         node_1 = self.depot_location[0] if self.vehicle_position == 0 else self.location[self.vehicle_position - 1]
         node_2 = self.depot_location[0] if action == 0 else self.location[action - 1]
         distance_cost = self._get_distance(node_1=node_1, node_2=node_2)
-
-        self.visited_mask[action] = 1
-        self.vehicle_position = action
-        self.current_load_capacity = np.array([self.vehicle_capacity], dtype=np.float32) if action == 0 else self.current_load_capacity - np.array([self.replenishment_amount[action - 1]], dtype=np.float32)
+        
+        infeasible = self.replenishment_amount > self.current_load_capacity[0]
+        load_mask = np.zeros(self.num_retailers + 1, dtype=int)
+        load_mask[1:] = infeasible
+        effective_mask = np.maximum(self.visited_mask, load_mask)
+        
+        if action != 0 and self.replenishment_amount[action - 1] <= self.current_load_capacity[0]:
+            self.visited_mask[action] = 1
+            effective_mask[action] = 1
+            self.vehicle_position = action
+            self.current_load_capacity -= np.array([self.replenishment_amount[action - 1]], dtype=np.float32)
+        elif action == 0:
+            self.current_load_capacity = np.array([self.vehicle_capacity], dtype=np.float32)
+            
         routing_obs = {
             "location": np.vstack([self.depot_location, self.location]),
             "vehicle_position": self.vehicle_position,
             "replenishment_amount": self.replenishment_amount,
             "current_load_capacity": self.current_load_capacity,
-            "visited_mask": self.visited_mask
+            "visited_mask": effective_mask
         }
 
         r_vrp = -distance_cost * self.delivery_cost
