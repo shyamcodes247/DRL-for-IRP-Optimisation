@@ -71,7 +71,7 @@ class IRPEnv(gym.Env):
         
         self.inventory_observation_space = gym.spaces.Dict(
             {
-                "location": gym.spaces.Box(low=-np.inf, high=np.inf, shape=(self.num_retailers + 1, loc_dim), dtype=np.float32),
+                "location": gym.spaces.Box(low=-np.inf, high=np.inf, shape=(self.num_retailers, loc_dim), dtype=np.float32),
                 "current_inventory": gym.spaces.Box(low=self.retailer_min_capacity, high=self.retailer_max_capacity, shape=(self.num_retailers,), dtype=np.float32),
                 "current_demand": gym.spaces.Box(low=min_demand, high=max_demand, shape=(self.num_retailers,), dtype=np.float32),
                 "holding_cost": gym.spaces.Box(low=self.holding_cost, high=self.holding_cost, shape=(self.num_retailers,), dtype=np.float32),
@@ -111,7 +111,6 @@ class IRPEnv(gym.Env):
     def reset(self, seed=None, options=None):
         super().reset(seed=seed)
         self.visited_mask = np.zeros(self.num_retailers + 1, dtype=int)
-        self.visited_mask[0] = 1
         self.current_step = 0
         self.current_demand = np.zeros(self.num_retailers, dtype=np.float32)
         self.retailers_current_inventory = self.retailers_initial_inventory.copy()
@@ -158,6 +157,10 @@ class IRPEnv(gym.Env):
             "current_load_capacity": self.current_load_capacity,
             "visited_mask": self.visited_mask
         }
+
+        # Ensures that any action that results in a break of the max_capacity of retailer is capped
+        max_delivery_allowed = self.retailer_max_capacity - self.retailers_current_inventory
+        action = np.clip(action, 0, max_delivery_allowed)
             
         self.retailers_current_inventory += action
         sales_loss = self.current_demand - self.retailers_current_inventory
@@ -181,7 +184,6 @@ class IRPEnv(gym.Env):
     def routing_action_step(self, action: int):
         node_1 = self.depot_location[0] if self.vehicle_position == 0 else self.location[self.vehicle_position - 1]
         node_2 = self.depot_location[0] if action == 0 else self.location[action - 1]
-
         distance_cost = self._get_distance(node_1=node_1, node_2=node_2)
 
         self.visited_mask[action] = 1
@@ -205,7 +207,6 @@ class IRPEnv(gym.Env):
             self.replenishment_history = self._update_history_window(self.replenishment_history, self.replenishment_amount)
             
             self.visited_mask = np.zeros(self.num_retailers + 1, dtype=int)
-            self.visited_mask[0] = 1
             self.current_load_capacity = np.array([self.vehicle_capacity], dtype=np.float32)
             terminated = self.current_step >= self.episode_length
             truncated = False
