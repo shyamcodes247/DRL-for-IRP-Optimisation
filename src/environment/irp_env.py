@@ -20,7 +20,7 @@ class IRPEnv(gym.Env):
         The critic has no action_space, since it only estimates value and
         does not select actions.
     """
-    def __init__(self, data_file_path, loc_dim, lookback_window, adjacency_list, product_price=None, penalty_factor=None, delivery_cost=1):
+    def __init__(self, data_file_path, loc_dim, lookback_window, product_price=None, penalty_factor=None, delivery_cost=1):
         """
         Args:
             episode_length: Number of timesteps per episode (planning horizon).
@@ -158,8 +158,11 @@ class IRPEnv(gym.Env):
             action = action * scale
         
         # Ensures that any action that results in a break of the max_capacity of retailer is capped
-        max_delivery_allowed = self.retailer_max_capacity - self.retailers_current_inventory
-        action = np.clip(action, 0, max_delivery_allowed)
+        max_delivery_allowed =  np.minimum( 
+            self.retailer_max_capacity - self.retailers_current_inventory,
+            self.vehicle_capacity
+        )
+        action = np.clip(action, 0, np.maximum(max_delivery_allowed, 0))
 
         self.depot_inventory -= np.sum(action)
         self.replenishment_amount = action
