@@ -28,7 +28,7 @@ for t in range(env.episode_length):
     action = env.inventory_action_space.sample()
     print(f"  requested        : {action}")
 
-    routing_obs, r_inv = env.inventory_action_step(action)
+    routing_obs, r_inv, info = env.inventory_action_step(action)
 
     print(f"  actually applied : {env.replenishment_amount}")
     print(f"  demand this pd   : {env.current_demand}")
