@@ -115,6 +115,7 @@ class IRPEnv(gym.Env):
     def reset(self, seed=None, options=None):
         super().reset(seed=seed)
         self.visited_mask = np.zeros(self.num_retailers + 1, dtype=int)
+        self.visited_mask[0] = 1
         self.current_step = 0
         self.current_demand = np.zeros(self.num_retailers, dtype=np.float32)
         self.retailers_current_inventory = self.retailers_initial_inventory.copy()
@@ -201,19 +202,28 @@ class IRPEnv(gym.Env):
         node_2 = self.depot_location[0] if action == 0 else self.location[action - 1]
         distance_cost = self._get_distance(node_1=node_1, node_2=node_2)
         
+        if action != 0 and self.replenishment_amount[action - 1] <= self.current_load_capacity[0]:
+            self.visited_mask[action] = 1
+            self.visited_mask[action] = 1
+            self.current_load_capacity -= np.array([self.replenishment_amount[action - 1]], dtype=np.float32)
+            self.vehicle_position = action
+        elif action == 0:
+            self.current_load_capacity = np.array([self.vehicle_capacity], dtype=np.float32)
+            self.vehicle_position = action
+
+        # Forces agent to reconsider its action by returning zero reward and masks node out to ensure it is not chosen again
+        if action != 0 and self.replenishment_amount[action - 1] > self.current_load_capacity[0]:
+            distance_cost = 0
+
+        if self.vehicle_position == 0:
+            self.visited_mask[0] = 1
+        else:
+            self.visited_mask[0] = 0
+
         infeasible = self.replenishment_amount > self.current_load_capacity[0]
         load_mask = np.zeros(self.num_retailers + 1, dtype=int)
         load_mask[1:] = infeasible
         effective_mask = np.maximum(self.visited_mask, load_mask)
-        
-        if action != 0 and self.replenishment_amount[action - 1] <= self.current_load_capacity[0]:
-            self.visited_mask[action] = 1
-            effective_mask[action] = 1
-            self.current_load_capacity -= np.array([self.replenishment_amount[action - 1]], dtype=np.float32)
-        elif action == 0:
-            self.current_load_capacity = np.array([self.vehicle_capacity], dtype=np.float32)
-        
-        self.vehicle_position = action
             
         routing_obs = {
             "location": np.vstack([self.depot_location, self.location]),
@@ -228,7 +238,7 @@ class IRPEnv(gym.Env):
         if np.all(self.visited_mask[1:] == 1):
             self.current_step += 1
             
-            r_vrp -= self._get_distance(node_1=self.location[self.vehicle_position - 1], node_2=self.depot_location[0])
+            r_vrp -= self._get_distance(node_1=self.location[self.vehicle_position - 1], node_2=self.depot_location[0]) * self.delivery_cost
             self.vehicle_position = 0
             
             # Update the historical data arrays with replenishment amounts and demands
@@ -236,6 +246,7 @@ class IRPEnv(gym.Env):
             self.replenishment_history = self._update_history_window(self.replenishment_history, self.replenishment_amount)
             
             self.visited_mask = np.zeros(self.num_retailers + 1, dtype=int)
+            self.visited_mask[0] = 1
             self.current_load_capacity = np.array([self.vehicle_capacity], dtype=np.float32)
             terminated = self.current_step >= self.episode_length
             truncated = False
