@@ -66,9 +66,12 @@ class IRPEnv(gym.Env):
         # need to implement this myself (since we have a complete graph)
         self.adjacency_list = self._create_adjacency_list(self.num_retailers + 1)
         self.delivery_cost = delivery_cost
-        max_demand = np.tile(np.max(self.demand, axis=1).reshape(-1, 1), (1, lookback_window))
-        min_demand = np.tile(np.min(self.demand, axis=1).reshape(-1, 1), (1, lookback_window))
-        max_replenishment = np.tile(np.subtract(self.retailer_max_capacity, self.retailer_min_capacity).reshape(-1, 1), (1, lookback_window))
+        max_demand = np.max(self.demand, axis=1)
+        min_demand = np.min(self.demand, axis=1)
+        max_historical_demand = np.tile(np.max(self.demand, axis=1).reshape(-1, 1), (1, lookback_window))
+        min_historical_demand = np.tile(np.min(self.demand, axis=1).reshape(-1, 1), (1, lookback_window))
+        max_replenishment = np.subtract(self.retailer_max_capacity, self.retailer_min_capacity)
+        max_historical_replenishment = np.tile(np.subtract(self.retailer_max_capacity, self.retailer_min_capacity).reshape(-1, 1), (1, lookback_window))
         
         self.inventory_observation_space = gym.spaces.Dict(
             {
@@ -76,8 +79,8 @@ class IRPEnv(gym.Env):
                 "current_inventory": gym.spaces.Box(low=self.retailer_min_capacity, high=self.retailer_max_capacity, shape=(self.num_retailers,), dtype=np.float32),
                 "current_demand": gym.spaces.Box(low=min_demand, high=max_demand, shape=(self.num_retailers,), dtype=np.float32),
                 "holding_cost": gym.spaces.Box(low=self.holding_cost, high=self.holding_cost, shape=(self.num_retailers,), dtype=np.float32),
-                "replenishment_history": gym.spaces.Box(low=0, high=max_replenishment, shape=(self.num_retailers, lookback_window), dtype=np.float32),
-                "historical_demands": gym.spaces.Box(low=min_demand, high=max_demand, shape=(self.num_retailers, lookback_window), dtype=np.float32)
+                "replenishment_history": gym.spaces.Box(low=0, high=max_historical_replenishment, shape=(self.num_retailers, lookback_window), dtype=np.float32),
+                "historical_demands": gym.spaces.Box(low=min_historical_demand, high=max_historical_demand, shape=(self.num_retailers, lookback_window), dtype=np.float32)
             }
         )
         self.inventory_action_space =  gym.spaces.Box(low=0, high=max_replenishment, shape=(self.num_retailers,), dtype=np.float32)
@@ -99,8 +102,8 @@ class IRPEnv(gym.Env):
                 "current_inventory": gym.spaces.Box(low=self.retailer_min_capacity, high=self.retailer_max_capacity, shape=(self.num_retailers,), dtype=np.float32),
                 "current_demand": gym.spaces.Box(low=min_demand, high=max_demand, shape=(self.num_retailers,), dtype=np.float32),
                 "holding_cost": gym.spaces.Box(low=self.holding_cost, high=self.holding_cost, shape=(self.num_retailers,), dtype=np.float32),
-                "replenishment_history": gym.spaces.Box(low=0, high=max_replenishment, shape=(self.num_retailers, lookback_window), dtype=np.float32),
-                "historical_demands": gym.spaces.Box(low=min_demand, high=max_demand, shape=(self.num_retailers, lookback_window), dtype=np.float32),
+                "replenishment_history": gym.spaces.Box(low=0, high=max_historical_replenishment, shape=(self.num_retailers, lookback_window), dtype=np.float32),
+                "historical_demands": gym.spaces.Box(low=min_historical_demand, high=max_historical_demand, shape=(self.num_retailers, lookback_window), dtype=np.float32),
 
                 # Routing-side info — from routing_observation_space
                 "current_load_capacity": gym.spaces.Box(low=0, high=self.vehicle_capacity, shape=(1,), dtype=np.float32),
@@ -203,10 +206,11 @@ class IRPEnv(gym.Env):
         if action != 0 and self.replenishment_amount[action - 1] <= self.current_load_capacity[0]:
             self.visited_mask[action] = 1
             effective_mask[action] = 1
-            self.vehicle_position = action
             self.current_load_capacity -= np.array([self.replenishment_amount[action - 1]], dtype=np.float32)
         elif action == 0:
             self.current_load_capacity = np.array([self.vehicle_capacity], dtype=np.float32)
+        
+        self.vehicle_position = action
             
         routing_obs = {
             "location": np.vstack([self.depot_location, self.location]),
@@ -220,6 +224,9 @@ class IRPEnv(gym.Env):
 
         if np.all(self.visited_mask[1:] == 1):
             self.current_step += 1
+            
+            r_vrp -= self._get_distance(node_1=self.location[self.vehicle_position - 1], node_2=self.depot_location[0])
+            self.vehicle_position = 0
             
             # Update the historical data arrays with replenishment amounts and demands
             self.historical_demands = self._update_history_window(self.historical_demands, self.current_demand)
