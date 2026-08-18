@@ -265,9 +265,9 @@ class IRPEnv(gym.Env):
 
     # Returns distance between two nodes
     def _get_distance(self, node_1: npt.NDArray[np.float32], node_2: npt.NDArray[np.float32]):
-        return np.linalg.norm(
+        return round(np.linalg.norm(
             node_1 - node_2, ord=2
-        )
+        ))
         
     # Updates history arrays based on movement in time
     def _update_history_window(self, history_arr, current_value):
