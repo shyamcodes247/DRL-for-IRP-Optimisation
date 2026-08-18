@@ -2,10 +2,13 @@ import sys, os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 from environment.irp_env import IRPEnv
 import numpy as np
+from pathlib import Path
 
-np.set_printoptions(precision=2, suppress=True)
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+DATA_DIR = PROJECT_ROOT / "data"
+instance_path = DATA_DIR / "Instances_lowcost_H6" / "abs1n5.dat"
 
-env = IRPEnv("data/Instances_lowcost_H6/abs1n5.dat", loc_dim=2, lookback_window=3)
+env = IRPEnv(str(instance_path), loc_dim=2, lookback_window=3)
 inv_obs, critic_obs, info = env.reset()
 
 print("=" * 70)

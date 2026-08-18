@@ -2,8 +2,15 @@ import pandas as pd
 
 # might need to reference as AI-generated
 def convert_instance(path):
+    # try: 
+    #     df = pd.read_csv(path, sep=r"\s+", engine="python", header=None)
+    # except FileNotFoundError:
+    #     print(f"File '{path}' not found.")
+    # except Exception as e:
+    #     print(f"An error occured: {e}")
+    
     with open(path, "r") as f:
-        lines = [line.strip().split('\t') for line in f if line.strip()]
+        lines = [line.strip().split() for line in f if line.strip()]
 
     num_nodes, episode_length, vehicle_capacity = lines[0]
     parameters = {
