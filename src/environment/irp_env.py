@@ -1,3 +1,5 @@
+from typing import Any, Dict, List, Optional, Tuple
+
 import numpy as np
 import numpy.typing as npt
 import pandas as pd
@@ -50,7 +52,15 @@ class IRPEnv(gym.Env):
         but not a routing observation — the routing actor only becomes active
         after `inventory_action_step` has produced replenishment amounts.
     """
-    def __init__(self, data_file_path, loc_dim, lookback_window, product_price=None, penalty_factor=None, delivery_cost=1):
+    def __init__(
+        self,
+        data_file_path: str,
+        loc_dim: int,
+        lookback_window: int,
+        product_price: Optional[float] = None,
+        penalty_factor: Optional[float] = None,
+        delivery_cost: float = 1,
+    ) -> None:
         """
         Args:
             data_file_path: Path to a benchmark instance file, parsed by
@@ -179,13 +189,13 @@ class IRPEnv(gym.Env):
 
                 # Routing-side info — from routing_observation_space
                 "current_load_capacity": gym.spaces.Box(low=0, high=self.vehicle_capacity, shape=(1,), dtype=np.float32),
-                # is visited_mask even neccessary since critic obs is always given at start
-                "visited_mask": gym.spaces.MultiBinary(self.num_retailers + 1),
                 "vehicle_position": gym.spaces.Discrete(self.num_retailers + 1),
             }
         )
 
-    def reset(self, seed=None, options=None):
+    def reset(
+        self, seed: Optional[int] = None, options: Optional[Dict[str, Any]] = None
+    ) -> Tuple[Dict[str, npt.NDArray], Dict[str, npt.NDArray], Dict[str, Any]]:
         """
         Start a new episode: restore inventories to their instance values, park the
         vehicle at the depot with a full load, and clear the history windows.
@@ -231,7 +241,6 @@ class IRPEnv(gym.Env):
             "replenishment_history": self.replenishment_history,
             "historical_demands": self.historical_demands,
             "current_load_capacity": self.current_load_capacity,
-            "visited_mask": self.visited_mask,
             "vehicle_position": self.vehicle_position
         }
 
@@ -239,7 +248,9 @@ class IRPEnv(gym.Env):
 
         return inventory_obs, critic_obs, info
 
-    def inventory_action_step(self, action):
+    def inventory_action_step(
+        self, action: npt.NDArray[np.float32]
+    ) -> Tuple[Dict[str, npt.NDArray], float, Dict[str, Any]]:
         """
         Apply the inventory actor's replenishment decision for the current timestep.
 
@@ -333,7 +344,9 @@ class IRPEnv(gym.Env):
         
         return routing_obs, r_inv, info
     
-    def routing_action_step(self, action: int):
+    def routing_action_step(
+        self, action: int
+    ) -> Tuple[Dict[str, npt.NDArray], float, Optional[Dict[str, npt.NDArray]], bool, bool, Dict[str, Any]]:
         """
         Move the vehicle to one node. Called repeatedly within a timestep until
         every retailer has been served, which closes the tour and advances the clock.
@@ -434,7 +447,6 @@ class IRPEnv(gym.Env):
                 "replenishment_history": self.replenishment_history,
                 "historical_demands": self.historical_demands,
                 "current_load_capacity": self.current_load_capacity,
-                "visited_mask": self.visited_mask,
                 "vehicle_position": self.vehicle_position
             }
 
@@ -445,14 +457,14 @@ class IRPEnv(gym.Env):
             return routing_obs, r_vrp, None, False, False, {}
         
         
-    def render(self):
+    def render(self) -> None:
         """Not implemented. `route_log` is reserved for a future tour visualisation."""
         pass
 
     # Returns distance between two nodes
     # Euclidean distance rounded to the nearest integer, matching the rounding
     # convention used by the benchmark instances so results stay comparable.
-    def _get_distance(self, node_1: npt.NDArray[np.float32], node_2: npt.NDArray[np.float32]):
+    def _get_distance(self, node_1: npt.NDArray[np.float32], node_2: npt.NDArray[np.float32]) -> int:
         return round(np.linalg.norm(
             node_1 - node_2, ord=2
         ))
@@ -460,7 +472,9 @@ class IRPEnv(gym.Env):
     # Updates history arrays based on movement in time
     # Sliding window of shape (num_retailers, lookback_window): shift left, drop the
     # oldest period, and write `current_value` into the newest (last) column.
-    def _update_history_window(self, history_arr, current_value):
+    def _update_history_window(
+        self, history_arr: npt.NDArray[np.float32], current_value: npt.NDArray[np.float32]
+    ) -> npt.NDArray[np.float32]:
         history_arr = np.roll(history_arr, shift=-1, axis=1)
         history_arr[:, -1] = current_value
         return history_arr
@@ -468,6 +482,6 @@ class IRPEnv(gym.Env):
     # Builds the fixed graph topology consumed by the GIN layers. Currently a complete
     # graph (every node adjacent to every other, no self-loops), since the benchmark
     # instances impose no travel restrictions between nodes.
-    def _create_adjacency_list(self, num_nodes):
+    def _create_adjacency_list(self, num_nodes: int) -> Dict[int, List[int]]:
         return {i: [j for j in range(num_nodes) if j != i] for i in range(num_nodes)}
         
