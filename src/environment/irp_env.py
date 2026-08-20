@@ -214,7 +214,7 @@ class IRPEnv(gym.Env):
         self.visited_mask = np.zeros(self.num_retailers + 1, dtype=int)
         self.visited_mask[0] = 1
         self.current_step = 0
-        self.current_demand = np.zeros(self.num_retailers, dtype=np.float32)
+        self.current_demand = self.demand[:, self.current_step]
         self.retailers_current_inventory = self.retailers_initial_inventory.copy()
         self.replenishment_amount = np.zeros(self.num_retailers, dtype=np.float32)
         self.replenishment_history = np.zeros((self.num_retailers, self.lookback_window), dtype=np.float32)
@@ -278,7 +278,6 @@ class IRPEnv(gym.Env):
         NOTE: `routing_obs` is built *before* demand is subtracted, so the routing
         actor sees the post-delivery/pre-consumption state.
         """
-        self.current_demand = self.demand[:, self.current_step]
 
         # Updates the depot's inventory levels based on delivery amounts
         self.depot_inventory += self.depot_production_rate
@@ -438,6 +437,9 @@ class IRPEnv(gym.Env):
             self.visited_mask[0] = 1
             self.current_load_capacity = np.array([self.vehicle_capacity], dtype=np.float32)
             terminated = self.current_step >= self.episode_length
+            if terminated is False:
+                self.current_demand = self.demand[:, self.current_step]
+
             truncated = False
             critic_obs = {
                 "location": np.vstack([self.depot_location, self.location]),
