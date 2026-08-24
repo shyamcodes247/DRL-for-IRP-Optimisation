@@ -1,7 +1,10 @@
+from typing import Dict
+
 import torch
 import numpy as np
+import numpy.typing as npt
 
-def build_critic_features(obs):
+def build_critic_features(obs: Dict[str, npt.NDArray]) -> torch.Tensor:
     """
     Flattens a critic observation dict (see `IRPEnv.critic_observation_space`)
     into a single per-node feature tensor for the critic's GIN encoder.
@@ -30,10 +33,10 @@ def build_critic_features(obs):
     """
     num_retailers = obs["location"].shape[0] - 1
 
-    def pad_depot_row(retailer_col):
+    def pad_depot_row(retailer_col: npt.NDArray) -> npt.NDArray:
         return np.vstack([np.zeros((1, retailer_col.shape[1])), retailer_col])
 
-    def pad_retailer_rows(depot_col):
+    def pad_retailer_rows(depot_col: npt.NDArray) -> npt.NDArray:
         return np.vstack([depot_col, np.zeros((num_retailers, depot_col.shape[1]))])
 
     loc = obs["location"]
@@ -50,7 +53,7 @@ def build_critic_features(obs):
     return torch.from_numpy(features).float()
 
 
-def build_global_features(obs):
+def build_global_features(obs: Dict[str, npt.NDArray]) -> torch.Tensor:
     """
     Flattens the critic observation's global, non-per-node scalars into a
     single feature vector — consumed by the critic after GIN pooling, rather
@@ -69,7 +72,7 @@ def build_global_features(obs):
     features = np.concatenate([production_rate, normalised_current_step])
     return torch.from_numpy(features).float()
 
-def build_inventory_features(obs):
+def build_inventory_features(obs: Dict[str, npt.NDArray]) -> torch.Tensor:
     """
     Flattens an inventory-actor observation dict (see
     `IRPEnv.inventory_observation_space`) into a per-retailer feature tensor.
@@ -91,7 +94,7 @@ def build_inventory_features(obs):
     features = np.hstack([loc, curr_inv, past_replenishment, curr_demand])
     return torch.from_numpy(features).float()
 
-def build_routing_features(obs):
+def build_routing_features(obs: Dict[str, npt.NDArray]) -> torch.Tensor:
     """
     Flattens a routing-actor observation dict (see
     `IRPEnv.routing_observation_space`) into a per-node feature tensor.
@@ -111,7 +114,7 @@ def build_routing_features(obs):
     features = np.hstack([loc, replenishment[:, None]])
     return torch.from_numpy(features).float()
 
-def build_inventory_history(obs):
+def build_inventory_history(obs: Dict[str, npt.NDArray]) -> torch.Tensor:
     inv = obs["current_inventory"][:, None]
     rep = obs["replenishment_history"]
     dem = obs["historical_demands"]
