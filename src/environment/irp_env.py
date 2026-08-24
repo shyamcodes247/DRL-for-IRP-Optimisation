@@ -190,6 +190,12 @@ class IRPEnv(gym.Env):
                 # Routing-side info — from routing_observation_space
                 "current_load_capacity": gym.spaces.Box(low=0, high=self.vehicle_capacity, shape=(1,), dtype=np.float32),
                 "vehicle_position": gym.spaces.Discrete(self.num_retailers + 1),
+
+                # Depot-side info — not part of either actor's observation space,
+                # since neither actor's decision depends on it directly, but the
+                # critic needs it to value the joint state.
+                "depot_inventory": gym.spaces.Box(low=0, high=np.inf, shape=(1,), dtype=np.float32),
+                "production_rate": gym.spaces.Box(low=self.depot_production_rate, high=self.depot_production_rate, shape=(1,), dtype=np.float32),
             }
         )
 
@@ -241,7 +247,9 @@ class IRPEnv(gym.Env):
             "replenishment_history": self.replenishment_history,
             "historical_demands": self.historical_demands,
             "current_load_capacity": self.current_load_capacity,
-            "vehicle_position": self.vehicle_position
+            "vehicle_position": self.vehicle_position,
+            "depot_inventory": np.array([self.depot_inventory], dtype=np.float32),
+            "production_rate": np.array([self.depot_production_rate], dtype=np.float32),
         }
 
         info = {}
@@ -449,7 +457,9 @@ class IRPEnv(gym.Env):
                 "replenishment_history": self.replenishment_history,
                 "historical_demands": self.historical_demands,
                 "current_load_capacity": self.current_load_capacity,
-                "vehicle_position": self.vehicle_position
+                "vehicle_position": self.vehicle_position,
+                "depot_inventory": np.array([self.depot_inventory], dtype=np.float32),
+                "production_rate": np.array([self.depot_production_rate], dtype=np.float32),
             }
 
             info = {}
