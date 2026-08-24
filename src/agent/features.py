@@ -6,33 +6,48 @@ def build_critic_features(obs):
     Flattens a critic observation dict (see `IRPEnv.critic_observation_space`)
     into a single per-node feature tensor for the critic's GIN encoder.
 
+    Retailer-only columns (current inventory, holding cost, current demand,
+    last replenishment, last realised demand) and depot-only columns (depot
+    inventory, production rate) don't apply to every node, so each is
+    zero-padded on the rows it doesn't describe rather than omitted — this
+    keeps every node's feature vector the same width, as `nn.Sequential`/GIN
+    require, at the cost of the GIN having to learn which columns are
+    meaningful per node type.
+
     Args:
         obs: Critic observation dict. `location` is (num_retailers+1, loc_dim)
-            (depot + retailers); `current_inventory`, `holding_cost`,
-            `current_demand` are (num_retailers,); `replenishment_history`
-            and `historical_demands` are (num_retailers, lookback_window).
-
-        NOTE: `current_inventory`, `holding_cost`, `current_demand`, and the
-        history-derived columns below are retailer-only (no depot row), while
-        `loc` includes the depot — `np.hstack` requires matching row counts,
-        so this raises a shape-mismatch error as written unless the caller
-        has already reconciled the depot row.
-        NOTE: `curr_demand` is used without a trailing `[:, None]`, unlike
-        the other per-node columns, so it isn't reshaped to a column vector
-        before stacking.
+            (depot + retailers, depot first); `current_inventory`,
+            `holding_cost`, `current_demand` are (num_retailers,);
+            `replenishment_history` and `historical_demands` are
+            (num_retailers, lookback_window); `depot_inventory` and
+            `production_rate` are (1,).
 
     Returns:
         Tensor of shape (num_retailers+1, num_features): per-node features
         (location, current inventory, last replenishment, holding cost,
-        current demand, last realised demand).
+        current demand, last realised demand, depot inventory, production
+        rate).
     """
+    num_retailers = obs["location"].shape[0] - 1
+
+    def pad_depot_row(retailer_col):
+        return np.vstack([np.zeros((1, retailer_col.shape[1])), retailer_col])
+
+    def pad_retailer_rows(depot_col):
+        return np.vstack([depot_col, np.zeros((num_retailers, depot_col.shape[1]))])
+
     loc = obs["location"]
-    curr_inv = obs["current_inventory"][:, None]
-    past_replenishment = obs["replenishment_history"][:, -1:]
-    holding_cost = obs["holding_cost"][:, None]
-    curr_demand = obs["current_demand"]
-    historical_demands = obs["historical_demands"][:, -1:]
-    features = np.hstack([loc, curr_inv, past_replenishment, holding_cost, curr_demand, historical_demands])
+    curr_inv = pad_depot_row(obs["current_inventory"][:, None])
+    past_replenishment = pad_depot_row(obs["replenishment_history"][:, -1:])
+    holding_cost = pad_depot_row(obs["holding_cost"][:, None])
+    curr_demand = pad_depot_row(obs["current_demand"][:, None])
+    historical_demands = pad_depot_row(obs["historical_demands"][:, -1:])
+    depot_inventory = pad_retailer_rows(obs["depot_inventory"][:, None])
+    production_rate = pad_retailer_rows(obs["production_rate"][:, None])
+    features = np.hstack([
+        loc, curr_inv, past_replenishment, holding_cost, curr_demand, historical_demands,
+        depot_inventory, production_rate,
+    ])
     return torch.from_numpy(features).float()
 
 def build_inventory_features(obs):
@@ -45,11 +60,6 @@ def build_inventory_features(obs):
             loc_dim); `current_inventory` and `replenishment_history` are as
             in `build_critic_features`.
 
-        NOTE: `curr_demand` here reads `historical_demands[:, -1]` (the last
-        *realised*, already-consumed demand) rather than `obs["current_demand"]`
-        (this period's not-yet-realized demand), even though the latter is
-        present in `inventory_observation_space`.
-
     Returns:
         Tensor of shape (num_retailers, num_features): per-retailer features
         (location, current inventory, last replenishment, last realised
@@ -58,7 +68,7 @@ def build_inventory_features(obs):
     loc = obs["location"]
     curr_inv = obs["current_inventory"][:, None]
     past_replenishment = obs["replenishment_history"][:, -1:]
-    curr_demand = obs["historical_demands"][:, -1:]
+    curr_demand = obs["current_demand"][:, None]
     features = np.hstack([loc, curr_inv, past_replenishment, curr_demand])
     return torch.from_numpy(features).float()
 
@@ -81,3 +91,10 @@ def build_routing_features(obs):
     replenishment = np.concatenate([[0.0], obs["replenishment_amount"]])
     features = np.hstack([loc, replenishment[:, None]])
     return torch.from_numpy(features).float()
+
+def build_inventory_history(obs):
+    inv = obs["current_inventory"][:, None]
+    rep = obs["replenishment_history"]
+    dem = obs["historical_demands"]
+    
+    return torch.from_numpy(np.hstack([inv, rep, dem])).float()
