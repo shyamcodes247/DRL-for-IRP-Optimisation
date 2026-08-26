@@ -5,10 +5,11 @@ from mlp import build_mlp
 
 class RoutingActor(torch.nn.Module):
     def __init__(self, node_feature_dim, gin_dims, mlp_dims):
+        super.__init__()
         self.gin = GINEncoder(node_feature_dim=node_feature_dim, hidden_dims=gin_dims)
         self.decoder = build_mlp(self.gin.output_dim, mlp_dims, 1)
         
-    def forward(self, node_features, visited_mask):
+    def forward(self, node_features):
         h = self.gin(node_features)
         pooled = h.mean(dim=0, keepdim=True)
         combined = torch.cat([h, pooled.expand(h.shape[0], -1)], dim=1)
