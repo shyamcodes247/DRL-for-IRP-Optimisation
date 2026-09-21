@@ -106,6 +106,13 @@ def parse_args() -> argparse.Namespace:
         "instance file(s)).",
     )
     parser.add_argument("--checkpoint-every", type=int, default=50)
+    parser.add_argument(
+        "--eval-every",
+        type=int,
+        default=25,
+        help="Run a greedy evaluation episode (paper-style Inv.cost/VRP.Dist/Fill-rate "
+        "breakdown, logged to eval.csv) every this many epochs.",
+    )
 
     return parser.parse_args()
 
@@ -148,6 +155,17 @@ def main() -> None:
         device=args.device,
     )
 
+    def run_evaluation(epoch):
+        for env, path in zip(envs, instance_paths):
+            metrics = mtppo.evaluate_episode(env)
+            metrics = {"instance": Path(path).stem, **metrics}
+            logger.log_metrics("eval", epoch, metrics)
+            print(
+                f"  [eval @ epoch {epoch:5d}] {metrics['instance']:>12s}  "
+                f"inv_cost={metrics['inv_cost']:9.2f}  vrp_dist={metrics['vrp_distance']:8.2f}  "
+                f"fill_rate={metrics['fill_rate']:6.2f}%  total_cost={metrics['total_cost']:9.2f}"
+            )
+
     def on_epoch_end(epoch, episode_stats, losses):
         mean_r_inv = sum(s["r_inv"] for s in episode_stats) / len(episode_stats)
         mean_r_vrp = sum(s["r_vrp"] for s in episode_stats) / len(episode_stats)
@@ -161,6 +179,8 @@ def main() -> None:
                 **losses,
             },
         )
+        if args.eval_every and epoch % args.eval_every == 0:
+            run_evaluation(epoch)
         if epoch % args.checkpoint_every == 0:
             path = logger.checkpoint_path(f"mtppo_epoch{epoch}.pt")
             mtppo.save(path)
@@ -176,6 +196,8 @@ def main() -> None:
             log_every=args.log_every,
             on_epoch_end=on_epoch_end,
         )
+        print("Final evaluation:")
+        run_evaluation(args.num_epochs)
     finally:
         logger.close()
 
@@ -183,6 +205,7 @@ def main() -> None:
     mtppo.save(final_path)
     print(f"Training complete. Final checkpoint -> {final_path}")
     print(f"Metrics -> {logger.run_dir / 'metrics.csv'}")
+    print(f"Eval history -> {logger.run_dir / 'eval.csv'}")
 
 
 if __name__ == "__main__":

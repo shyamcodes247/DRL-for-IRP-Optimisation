@@ -265,6 +265,91 @@ class MTPPO:
             "total_reward": total_r_inv + total_r_vrp,
         }
 
+    def evaluate_episode(self, env: Any) -> Dict[str, float]:
+        """
+        Runs one deterministic (greedy) episode on `env`: the inventory
+        actor's mean action instead of a sampled one, the routing actor's
+        highest-probability (masked) node instead of a sampled one. Reports
+        the paper's cost-breakdown metrics (Lu et al., 2025, Tables 4-6):
+        inventory cost, delivery distance, fill rate, and their sum.
+
+        `IRPEnv`'s demand is fixed per instance (not resampled per reset),
+        so a greedy rollout is fully deterministic — one call is enough,
+        there's no benefit to averaging over repeated episodes.
+
+        Returns:
+            Dict with `inv_cost` (total holding + lost-sales cost),
+            `vrp_distance` (raw travel distance, undiscounted by
+            `delivery_cost`), `routing_cost` (`vrp_distance * delivery_cost`,
+            i.e. the paper's VRP.Dist*1k-style delivery cost term),
+            `total_cost` (`inv_cost + routing_cost`), `fill_rate` (percent
+            of demand served immediately from stock), and `stockout_count`.
+        """
+        self.critic.eval()
+        self.inv_actor.eval()
+        self.routing_actor.eval()
+
+        scale = self._location_scale(env)
+        _, critic_obs, _ = env.reset()
+
+        total_inv_cost = 0.0
+        total_distance = 0.0
+        total_lost_units = 0.0
+        total_demand = 0.0
+        total_stockouts = 0
+        terminated = False
+
+        with torch.no_grad():
+            while not terminated:
+                inv_obs = self._inventory_obs_from_critic(critic_obs)
+                inv_node_feats = self._normalize_location(build_inventory_features(inv_obs), scale).to(
+                    self.device
+                )
+                inv_hist_feats = build_inventory_history(inv_obs).to(self.device)
+                mu, _ = self.inv_actor(inv_node_feats, inv_hist_feats)
+
+                total_demand += float(env.current_demand.sum())
+                routing_obs, r_inv, info = env.inventory_action_step(mu.cpu().numpy())
+                total_inv_cost += -r_inv
+                total_lost_units += info["lost_sales_units"]
+                total_stockouts += info["stockout_count"]
+
+                guard = 0
+                while True:
+                    route_node_feats = self._normalize_location(
+                        build_routing_features(routing_obs), scale
+                    ).to(self.device)
+                    mask = torch.from_numpy(routing_obs["visited_mask"]).to(self.device)
+                    logits = self.routing_actor(route_node_feats).masked_fill(mask == 1, float("-inf"))
+                    route_action = int(torch.argmax(logits).item())
+
+                    routing_obs, r_vrp, next_critic_obs, terminated, _, _ = env.routing_action_step(
+                        route_action
+                    )
+                    total_distance += -r_vrp / max(env.delivery_cost, 1e-12)
+
+                    if next_critic_obs is not None:
+                        critic_obs = next_critic_obs
+                        break
+                    guard += 1
+                    assert guard < 10_000, "greedy routing loop did not terminate"
+
+        self.critic.train()
+        self.inv_actor.train()
+        self.routing_actor.train()
+
+        routing_cost = total_distance * env.delivery_cost
+        fill_rate = 100.0 * (1.0 - total_lost_units / total_demand) if total_demand > 0 else 100.0
+
+        return {
+            "inv_cost": total_inv_cost,
+            "vrp_distance": total_distance,
+            "routing_cost": routing_cost,
+            "total_cost": total_inv_cost + routing_cost,
+            "fill_rate": fill_rate,
+            "stockout_count": total_stockouts,
+        }
+
     @staticmethod
     def _normalize(advantages: torch.Tensor) -> torch.Tensor:
         if advantages.numel() <= 1:
