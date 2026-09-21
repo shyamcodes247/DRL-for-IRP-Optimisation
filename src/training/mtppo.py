@@ -36,10 +36,11 @@ class MTPPO:
         (see `RolloutBuffer`'s NOTE on Eq. 35).
 
         This class owns the three networks, each with its own optimizer (see
-        `__init__`'s note on why they're kept separate rather than pooled, as
-        Algorithm 1 line 20's "Update theta_k ... and phi by a gradient
-        method" might suggest) — one gradient step per minibatch still
-        updates all three together, from one combined backward pass.
+        `__init__`'s note on why they're kept separate rather than pooled).
+        Following Algorithm 1 literally: each epoch rolls out every one of
+        the m sampled instances (`train`'s env pool) once, then takes
+        exactly one gradient step (`update`) over everything collected that
+        epoch — not multiple minibatch passes.
     """
 
     def __init__(
@@ -356,146 +357,139 @@ class MTPPO:
             return advantages
         return (advantages - advantages.mean()) / (advantages.std() + 1e-8)
 
-    def update(self, buffer: RolloutBuffer, ppo_epochs: int, batch_size: int) -> Dict[str, float]:
+    def update(self, buffer: RolloutBuffer) -> Dict[str, float]:
         """
-        Runs `ppo_epochs` passes of minibatch PPO updates over everything
-        currently in `buffer` (Algorithm 1, lines 16-20), then clears it.
+        One aggregated gradient step over everything currently in `buffer`
+        (Algorithm 1, lines 16-20), then clears it. Matches the pseudocode
+        literally: `L_CLIP^{i,k}` and the critic's MSE loss are each summed
+        across every instance i's episode collected this epoch (lines 16-18,
+        inside the i-loop), and exactly one gradient update follows (line 20,
+        outside it) — not multiple minibatch passes.
 
-        For each minibatch record (one environment timestep), the critic is
-        re-evaluated on that timestep's joint state, the inventory actor is
-        re-evaluated on its single per-timestep action, and the routing
-        actor is re-evaluated on every hop taken during that timestep's tour
-        — each hop's clipped surrogate term uses that timestep's single
-        `adv_vrp` (Fig. 3's sub-action decomposition: multiple routing
-        sub-actions share one timestep-level reward/advantage).
+        The critic is re-evaluated on every timestep's joint state, the
+        inventory actor on its single per-timestep action, and the routing
+        actor on every hop taken during that timestep's tour — each hop's
+        clipped surrogate term uses that timestep's single `adv_vrp` (Fig.
+        3's sub-action decomposition: multiple routing sub-actions share one
+        timestep-level reward/advantage).
 
         Args:
-            buffer: Rollout storage populated by one or more calls to
-                `collect_episode`.
-            ppo_epochs: Number of full passes over the buffer's minibatches.
-            batch_size: Timesteps per minibatch (see `RolloutBuffer.get_batches`).
+            buffer: Rollout storage populated by one `collect_episode` call
+                per instance this epoch (see `train`).
 
         Returns:
-            Dict of mean losses/entropy across all minibatches and epochs,
-            for logging.
+            Dict of this epoch's losses/entropy, for logging.
         """
         buffer.compute_advantage(self.gamma)
         buffer.adv_inv = self._normalize(buffer.adv_inv)
         buffer.adv_vrp = self._normalize(buffer.adv_vrp)
 
-        stats = {"policy_inv": 0.0, "policy_vrp": 0.0, "value": 0.0, "entropy": 0.0}
-        num_updates = 0
+        num_timesteps = len(buffer.r_inv)
+        batch = next(buffer.get_batches(num_timesteps))
 
-        for _ in range(ppo_epochs):
-            for batch in buffer.get_batches(batch_size):
-                self.critic_optimizer.zero_grad()
-                self.inv_optimizer.zero_grad()
-                self.routing_optimizer.zero_grad()
+        self.critic_optimizer.zero_grad()
+        self.inv_optimizer.zero_grad()
+        self.routing_optimizer.zero_grad()
 
-                clip_inv_sum = torch.zeros((), device=self.device)
-                clip_vrp_sum = torch.zeros((), device=self.device)
-                value_loss_sum = torch.zeros((), device=self.device)
-                entropy_inv_sum = torch.zeros((), device=self.device)
-                entropy_vrp_sum = torch.zeros((), device=self.device)
-                num_hops = 0
+        clip_inv_sum = torch.zeros((), device=self.device)
+        clip_vrp_sum = torch.zeros((), device=self.device)
+        value_loss_sum = torch.zeros((), device=self.device)
+        entropy_inv_sum = torch.zeros((), device=self.device)
+        entropy_vrp_sum = torch.zeros((), device=self.device)
+        num_hops = 0
 
-                for record in batch:
-                    node_feats, global_feats = record["critic_obs"]
-                    value = self.critic(node_feats.to(self.device), global_feats.to(self.device)).squeeze(-1)
+        for record in batch:
+            node_feats, global_feats = record["critic_obs"]
+            value = self.critic(node_feats.to(self.device), global_feats.to(self.device)).squeeze(-1)
 
-                    return_inv = record["return_inv"].to(self.device)
-                    return_vrp = record["return_vrp"].to(self.device)
-                    value_loss_sum = value_loss_sum + F.mse_loss(value, return_inv) + F.mse_loss(value, return_vrp)
+            return_inv = record["return_inv"].to(self.device)
+            return_vrp = record["return_vrp"].to(self.device)
+            value_loss_sum = value_loss_sum + F.mse_loss(value, return_inv) + F.mse_loss(value, return_vrp)
 
-                    inv = record["inventory"]
-                    new_logp_inv, entropy_inv = self.inv_actor.evaluate(
-                        inv["node_features"].to(self.device),
-                        inv["history_features"].to(self.device),
-                        inv["action"].to(self.device),
-                    )
-                    adv_inv = inv["advantage"].to(self.device)
-                    ratio_inv = torch.exp(new_logp_inv - inv["old_log_prob"].to(self.device))
-                    clip_inv_sum = clip_inv_sum + torch.min(
-                        ratio_inv * adv_inv,
-                        torch.clamp(ratio_inv, 1 - self.clip_eps, 1 + self.clip_eps) * adv_inv,
-                    )
-                    entropy_inv_sum = entropy_inv_sum + entropy_inv
+            inv = record["inventory"]
+            new_logp_inv, entropy_inv = self.inv_actor.evaluate(
+                inv["node_features"].to(self.device),
+                inv["history_features"].to(self.device),
+                inv["action"].to(self.device),
+            )
+            adv_inv = inv["advantage"].to(self.device)
+            ratio_inv = torch.exp(new_logp_inv - inv["old_log_prob"].to(self.device))
+            clip_inv_sum = clip_inv_sum + torch.min(
+                ratio_inv * adv_inv,
+                torch.clamp(ratio_inv, 1 - self.clip_eps, 1 + self.clip_eps) * adv_inv,
+            )
+            entropy_inv_sum = entropy_inv_sum + entropy_inv
 
-                    for hop in record["routing"]:
-                        new_logp_vrp, entropy_vrp = self.routing_actor.evaluate(
-                            hop["node_features"].to(self.device),
-                            hop["mask"].to(self.device),
-                            torch.as_tensor(hop["action"], device=self.device),
-                        )
-                        adv_vrp = hop["advantage"].to(self.device)
-                        ratio_vrp = torch.exp(new_logp_vrp - hop["old_log_prob"].to(self.device))
-                        clip_vrp_sum = clip_vrp_sum + torch.min(
-                            ratio_vrp * adv_vrp,
-                            torch.clamp(ratio_vrp, 1 - self.clip_eps, 1 + self.clip_eps) * adv_vrp,
-                        )
-                        entropy_vrp_sum = entropy_vrp_sum + entropy_vrp
-                        num_hops += 1
+            for hop in record["routing"]:
+                new_logp_vrp, entropy_vrp = self.routing_actor.evaluate(
+                    hop["node_features"].to(self.device),
+                    hop["mask"].to(self.device),
+                    torch.as_tensor(hop["action"], device=self.device),
+                )
+                adv_vrp = hop["advantage"].to(self.device)
+                ratio_vrp = torch.exp(new_logp_vrp - hop["old_log_prob"].to(self.device))
+                clip_vrp_sum = clip_vrp_sum + torch.min(
+                    ratio_vrp * adv_vrp,
+                    torch.clamp(ratio_vrp, 1 - self.clip_eps, 1 + self.clip_eps) * adv_vrp,
+                )
+                entropy_vrp_sum = entropy_vrp_sum + entropy_vrp
+                num_hops += 1
 
-                num_records = len(batch)
-                num_hops = max(num_hops, 1)
+        num_records = len(batch)
+        num_hops = max(num_hops, 1)
 
-                value_loss = value_loss_sum / num_records
-                inv_policy_loss = -(clip_inv_sum / num_records)
-                vrp_policy_loss = -(clip_vrp_sum / num_hops)
-                entropy_inv = entropy_inv_sum / num_records
-                entropy_vrp = entropy_vrp_sum / num_hops
+        value_loss = value_loss_sum / num_records
+        inv_policy_loss = -(clip_inv_sum / num_records)
+        vrp_policy_loss = -(clip_vrp_sum / num_hops)
+        entropy_inv = entropy_inv_sum / num_records
+        entropy_vrp = entropy_vrp_sum / num_hops
 
-                critic_loss = self.value_coef * value_loss
-                inv_loss = inv_policy_loss - self.entropy_coef * entropy_inv
-                routing_loss = vrp_policy_loss - self.entropy_coef * entropy_vrp
+        critic_loss = self.value_coef * value_loss
+        inv_loss = inv_policy_loss - self.entropy_coef * entropy_inv
+        routing_loss = vrp_policy_loss - self.entropy_coef * entropy_vrp
 
-                # One backward pass over the sum is equivalent to three separate
-                # ones here (the three branches share no parameters), but cheaper;
-                # clipping and stepping are still done per-network below.
-                (critic_loss + inv_loss + routing_loss).backward()
+        # One backward pass over the sum is equivalent to three separate
+        # ones here (the three branches share no parameters), but cheaper;
+        # clipping and stepping are still done per-network below.
+        (critic_loss + inv_loss + routing_loss).backward()
 
-                torch.nn.utils.clip_grad_norm_(self.critic.parameters(), self.max_grad_norm)
-                torch.nn.utils.clip_grad_norm_(self.inv_actor.parameters(), self.max_grad_norm)
-                torch.nn.utils.clip_grad_norm_(self.routing_actor.parameters(), self.max_grad_norm)
+        torch.nn.utils.clip_grad_norm_(self.critic.parameters(), self.max_grad_norm)
+        torch.nn.utils.clip_grad_norm_(self.inv_actor.parameters(), self.max_grad_norm)
+        torch.nn.utils.clip_grad_norm_(self.routing_actor.parameters(), self.max_grad_norm)
 
-                self.critic_optimizer.step()
-                self.inv_optimizer.step()
-                self.routing_optimizer.step()
-
-                stats["policy_inv"] += inv_policy_loss.item()
-                stats["policy_vrp"] += vrp_policy_loss.item()
-                stats["value"] += value_loss.item()
-                stats["entropy"] += (entropy_inv.item() + entropy_vrp.item()) / 2
-                num_updates += 1
+        self.critic_optimizer.step()
+        self.inv_optimizer.step()
+        self.routing_optimizer.step()
 
         buffer.clear()
-        return {k: v / max(num_updates, 1) for k, v in stats.items()}
+        return {
+            "policy_inv": inv_policy_loss.item(),
+            "policy_vrp": vrp_policy_loss.item(),
+            "value": value_loss.item(),
+            "entropy": (entropy_inv.item() + entropy_vrp.item()) / 2,
+        }
 
     def train(
         self,
         envs: List[Any],
         num_epochs: int,
-        episodes_per_epoch: int,
-        ppo_epochs: int,
-        batch_size: int,
         log_every: int = 1,
         on_epoch_end: Any = None,
     ) -> None:
         """
-        Top-level training loop (Algorithm 1): for each epoch, sample
-        `episodes_per_epoch` instances from `envs` (with replacement,
-        matching "sampling m instances from a uniform distribution"),
-        collect one full episode from each into a shared buffer, then run
-        `ppo_epochs` of minibatch PPO updates on everything collected.
+        Top-level training loop (Algorithm 1): for each epoch, roll out
+        every one of the m instances in `envs` exactly once (line 3's
+        "sampling m instances from a uniform distribution" — realized here
+        as the fixed pool of instance files passed in, touched once per
+        epoch rather than resampled with replacement) into a shared buffer,
+        then run exactly one aggregated gradient update on everything
+        collected (line 20 — a single step, not multiple minibatch passes).
 
         Args:
-            envs: Pool of environment instances to sample episodes from.
-                Pass a single-element list to train on one fixed instance.
+            envs: The m problem instances (e.g. every file in a benchmark
+                subfolder). Pass a single-element list to train on one
+                fixed instance.
             num_epochs: Number of outer collect+update cycles.
-            episodes_per_epoch: Number of episodes collected per epoch
-                before each PPO update (m in Algorithm 1).
-            ppo_epochs: PPO epochs per update (see `update`).
-            batch_size: Minibatch size per PPO epoch (see `update`).
             log_every: Print aggregated episode stats every this many epochs.
             on_epoch_end: Optional callback `(epoch, episode_stats, losses)`
                 invoked after each epoch's update, e.g. for checkpointing.
@@ -503,12 +497,9 @@ class MTPPO:
         buffer = RolloutBuffer()
 
         for epoch in range(1, num_epochs + 1):
-            episode_stats = []
-            for _ in range(episodes_per_epoch):
-                env = envs[torch.randint(len(envs), (1,)).item()]
-                episode_stats.append(self.collect_episode(env, buffer))
+            episode_stats = [self.collect_episode(env, buffer) for env in envs]
 
-            losses = self.update(buffer, ppo_epochs=ppo_epochs, batch_size=batch_size)
+            losses = self.update(buffer)
 
             if log_every and epoch % log_every == 0:
                 mean_r_inv = sum(s["r_inv"] for s in episode_stats) / len(episode_stats)

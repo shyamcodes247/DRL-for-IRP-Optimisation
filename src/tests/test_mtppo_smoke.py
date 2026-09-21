@@ -61,10 +61,7 @@ def test_mtppo_trains_without_nan(instance_path):
 
     mtppo.train(
         envs=[env],
-        num_epochs=5,
-        episodes_per_epoch=2,
-        ppo_epochs=2,
-        batch_size=4,
+        num_epochs=10,
         log_every=0,
     )
 
