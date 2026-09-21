@@ -3,6 +3,7 @@ import glob
 import os
 import sys
 from pathlib import Path
+from typing import List, Tuple
 
 import torch
 
@@ -15,11 +16,12 @@ for _p in (_SRC_DIR, _AGENT_DIR):
 
 from environment.irp_env import IRPEnv
 from training.mtppo import MTPPO
+from utils.logger import ResultsLogger
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
 
-def build_envs(args: argparse.Namespace) -> list:
+def build_envs(args: argparse.Namespace) -> Tuple[list, List[str]]:
     """Resolves --instance/--data-glob into a list of IRPEnv instances."""
     if args.instance:
         paths = [args.instance]
@@ -40,7 +42,15 @@ def build_envs(args: argparse.Namespace) -> list:
         for path in paths
     ]
     print(f"Loaded {len(envs)} instance(s): {[Path(p).name for p in paths]}")
-    return envs
+    return envs, paths
+
+
+def derive_run_name(paths: List[str]) -> str:
+    """Names a run after its instance(s): the single stem, or `multi_<n>_<first_stem>`."""
+    stems = [Path(p).stem for p in paths]
+    if len(stems) == 1:
+        return stems[0]
+    return f"multi_{len(stems)}_{stems[0]}"
 
 
 def parse_args() -> argparse.Namespace:
@@ -80,7 +90,21 @@ def parse_args() -> argparse.Namespace:
 
     parser.add_argument("--seed", type=int, default=0)
     parser.add_argument("--device", type=str, default="cuda" if torch.cuda.is_available() else "cpu")
-    parser.add_argument("--checkpoint-dir", type=str, default=None)
+
+    parser.add_argument(
+        "--results-dir",
+        type=str,
+        default=str(PROJECT_ROOT / "src" / "results"),
+        help="Root directory under which each run gets its own timestamped subfolder "
+        "(metrics.csv, config.json, checkpoints/).",
+    )
+    parser.add_argument(
+        "--run-name",
+        type=str,
+        default=None,
+        help="Prefix for the run's results subfolder name (default: derived from the "
+        "instance file(s)).",
+    )
     parser.add_argument("--checkpoint-every", type=int, default=50)
 
     return parser.parse_args()
@@ -91,7 +115,13 @@ def main() -> None:
 
     torch.manual_seed(args.seed)
 
-    envs = build_envs(args)
+    envs, instance_paths = build_envs(args)
+
+    run_name = args.run_name or derive_run_name(instance_paths)
+
+    logger = ResultsLogger(results_root=args.results_dir, run_name=run_name)
+    logger.log_config(vars(args))
+    print(f"Logging results to {logger.run_dir}")
 
     node_feature_dims = {
         "critic": args.loc_dim + 6,
@@ -118,31 +148,41 @@ def main() -> None:
         device=args.device,
     )
 
-    checkpoint_dir = None
-    if args.checkpoint_dir:
-        checkpoint_dir = Path(args.checkpoint_dir)
-        checkpoint_dir.mkdir(parents=True, exist_ok=True)
-
     def on_epoch_end(epoch, episode_stats, losses):
-        if checkpoint_dir and epoch % args.checkpoint_every == 0:
-            path = checkpoint_dir / f"mtppo_epoch{epoch}.pt"
-            mtppo.save(str(path))
+        mean_r_inv = sum(s["r_inv"] for s in episode_stats) / len(episode_stats)
+        mean_r_vrp = sum(s["r_vrp"] for s in episode_stats) / len(episode_stats)
+        mean_total = sum(s["total_reward"] for s in episode_stats) / len(episode_stats)
+        logger.log_epoch(
+            epoch,
+            {
+                "mean_r_inv": mean_r_inv,
+                "mean_r_vrp": mean_r_vrp,
+                "mean_total_reward": mean_total,
+                **losses,
+            },
+        )
+        if epoch % args.checkpoint_every == 0:
+            path = logger.checkpoint_path(f"mtppo_epoch{epoch}.pt")
+            mtppo.save(path)
             print(f"  saved checkpoint -> {path}")
 
-    mtppo.train(
-        envs=envs,
-        num_epochs=args.num_epochs,
-        episodes_per_epoch=args.episodes_per_epoch,
-        ppo_epochs=args.ppo_epochs,
-        batch_size=args.batch_size,
-        log_every=args.log_every,
-        on_epoch_end=on_epoch_end,
-    )
+    try:
+        mtppo.train(
+            envs=envs,
+            num_epochs=args.num_epochs,
+            episodes_per_epoch=args.episodes_per_epoch,
+            ppo_epochs=args.ppo_epochs,
+            batch_size=args.batch_size,
+            log_every=args.log_every,
+            on_epoch_end=on_epoch_end,
+        )
+    finally:
+        logger.close()
 
-    if checkpoint_dir:
-        final_path = checkpoint_dir / "mtppo_final.pt"
-        mtppo.save(str(final_path))
-        print(f"Training complete. Final checkpoint -> {final_path}")
+    final_path = logger.checkpoint_path("mtppo_final.pt")
+    mtppo.save(final_path)
+    print(f"Training complete. Final checkpoint -> {final_path}")
+    print(f"Metrics -> {logger.run_dir / 'metrics.csv'}")
 
 
 if __name__ == "__main__":
