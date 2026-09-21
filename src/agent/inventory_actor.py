@@ -65,7 +65,12 @@ class InventoryActor(torch.nn.Module):
         combined = torch.cat([h, e], dim=1)
         out = self.decoder(combined)
         mu, rho = out[:, 0], out[:, 1]
-        sigma = torch.exp(rho)
+        # Unclamped, a single gradient step can push rho to an extreme value
+        # (exp() amplifies it in either direction), causing sigma to explode
+        # or collapse and NaN out within the first few PPO updates. Clamped
+        # to the standard continuous-PPO range, this bounds sigma to
+        # roughly [0.007, 7.4].
+        sigma = torch.exp(torch.clamp(rho, min=-5.0, max=2.0))
 
         return mu, sigma
 

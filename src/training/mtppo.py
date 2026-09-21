@@ -1,0 +1,461 @@
+import os
+import sys
+from typing import Any, Dict, List
+
+import numpy as np
+import torch
+import torch.nn.functional as F
+
+_THIS_DIR = os.path.dirname(os.path.abspath(__file__))
+_SRC_DIR = os.path.join(_THIS_DIR, "..")
+_AGENT_DIR = os.path.join(_SRC_DIR, "agent")
+for _p in (_SRC_DIR, _AGENT_DIR):
+    if _p not in sys.path:
+        sys.path.insert(0, _p)
+
+from agent.critic import Critic
+from agent.inventory_actor import InventoryActor
+from agent.routing_actor import RoutingActor
+from agent.features import (
+    build_critic_features,
+    build_global_features,
+    build_inventory_features,
+    build_inventory_history,
+    build_routing_features,
+)
+from training.rollout_buffer import RolloutBuffer
+
+
+class MTPPO:
+    """
+        Multi-Task Proximal Policy Optimization (Lu et al., 2025): a two-actor,
+        one-critic CTDE algorithm for the IRP-VMI. The inventory actor and
+        routing actor are trained independently (Eqs. 36-37, per-task clipped
+        surrogate objectives), while a single shared critic (Eq. 34) values
+        the joint pre-decision state and baselines both tasks' advantages
+        (see `RolloutBuffer`'s NOTE on Eq. 35).
+
+        This class owns the three networks, each with its own optimizer (see
+        `__init__`'s note on why they're kept separate rather than pooled, as
+        Algorithm 1 line 20's "Update theta_k ... and phi by a gradient
+        method" might suggest) — one gradient step per minibatch still
+        updates all three together, from one combined backward pass.
+    """
+
+    def __init__(
+        self,
+        node_feature_dims: Dict[str, int],
+        history_dim: int,
+        global_feature_dim: int,
+        gin_dims: List[int],
+        mlp_dims: List[int],
+        embed_dim: int,
+        loc_dim: int = 2,
+        lr: float = 1e-3,
+        gamma: float = 0.9,
+        clip_eps: float = 0.2,
+        value_coef: float = 0.5,
+        entropy_coef: float = 0.01,
+        max_grad_norm: float = 0.5,
+        device: str = "cpu",
+    ) -> None:
+        """
+        Args:
+            node_feature_dims: Per-node input feature widths for each
+                network, keyed "critic", "inventory", "routing" (see
+                `features.py`'s `build_*_features` for how each is derived).
+            history_dim: Width of a retailer's flattened history vector fed
+                to `InventoryActor.state_embed` (see `build_inventory_history`).
+            global_feature_dim: Width of the critic's global feature vector
+                (see `build_global_features`).
+            gin_dims: GIN layer output dimensionalities, shared by all three
+                networks' encoders.
+            mlp_dims: Shared hidden-layer sizes for the decoder/head MLPs.
+            embed_dim: Output width of `InventoryActor.state_embed`.
+            loc_dim: Dimensionality of a node's location feature. Location is
+                always the leading `loc_dim` columns of every feature tensor
+                built by `features.py`'s `build_*_features`, which is what
+                `_normalize_location` relies on to rescale it in place.
+            lr: Adam learning rate for the combined actor+critic parameters.
+            gamma: Discount factor used by `RolloutBuffer.compute_advantage`.
+            clip_eps: PPO clipping parameter (epsilon in Eq. 36).
+            value_coef: Weight on the critic's MSE loss in the combined loss.
+            entropy_coef: Weight on the entropy bonus (exploration) in the
+                combined loss.
+            max_grad_norm: Global gradient-norm clip applied before each
+                optimizer step.
+            device: torch device string the networks and batches are moved to.
+        """
+        self.loc_dim = loc_dim
+        self.gamma = gamma
+        self.clip_eps = clip_eps
+        self.value_coef = value_coef
+        self.entropy_coef = entropy_coef
+        self.max_grad_norm = max_grad_norm
+        self.device = torch.device(device)
+
+        self.critic = Critic(
+            node_feature_dim=node_feature_dims["critic"],
+            global_feature_dim=global_feature_dim,
+            hidden_dims=list(gin_dims),
+            mlps_dim=list(mlp_dims),
+        ).to(self.device)
+
+        self.inv_actor = InventoryActor(
+            node_feature_dim=node_feature_dims["inventory"],
+            history_dim=history_dim,
+            gin_dims=list(gin_dims),
+            mlp_dims=list(mlp_dims),
+            embed_dim=embed_dim,
+        ).to(self.device)
+
+        self.routing_actor = RoutingActor(
+            node_feature_dim=node_feature_dims["routing"],
+            gin_dims=list(gin_dims),
+            mlp_dims=list(mlp_dims),
+        ).to(self.device)
+
+        # Separate optimizers (and, in `update`, separate grad-norm clipping) per
+        # network: the paper describes the two actors as "independently trained"
+        # with a shared critic evaluating both, and in practice this also stops
+        # the critic's much larger loss scale (its regression target is a raw
+        # cumulative-cost return, easily orders of magnitude bigger than a
+        # clipped-and-advantage-normalized policy loss) from dominating a pooled
+        # gradient norm and rescaling the actors' otherwise-healthy gradients
+        # down to near zero — or, if the critic ever produces a non-finite
+        # gradient, from poisoning the actors' gradients via that shared norm.
+        self.critic_optimizer = torch.optim.Adam(self.critic.parameters(), lr=lr)
+        self.inv_optimizer = torch.optim.Adam(self.inv_actor.parameters(), lr=lr)
+        self.routing_optimizer = torch.optim.Adam(self.routing_actor.parameters(), lr=lr)
+
+        # Caches each env's location-scale constant (see `_location_scale`) so it
+        # is computed once per env rather than on every `collect_episode` call.
+        self._loc_scale_cache: Dict[int, float] = {}
+
+    @staticmethod
+    def _inventory_obs_from_critic(critic_obs: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Derives an inventory-actor-shaped observation from a critic
+        observation. Used for every timestep after the first, since
+        `IRPEnv.routing_action_step` only returns a joint `critic_obs` on
+        tour close, not a standalone inventory observation — but the two
+        share the same underlying fields (the critic's `location` just has
+        an extra leading depot row).
+        """
+        return {
+            "location": critic_obs["location"][1:],
+            "current_inventory": critic_obs["current_inventory"],
+            "current_demand": critic_obs["current_demand"],
+            "replenishment_history": critic_obs["replenishment_history"],
+            "historical_demands": critic_obs["historical_demands"],
+        }
+
+    def _location_scale(self, env: Any) -> float:
+        """
+        Per-env coordinate scale, used by `_normalize_location` to rescale
+        location features into a small, network-friendly range.
+
+        Benchmark instance files are not guaranteed to use the paper's
+        assumed (0,1) coordinate range (e.g. this repo's
+        `Instances_lowcost_H6` set uses raw coordinates up to several
+        hundred). Left unscaled, these feed straight into the GIN's
+        neighbour-sum aggregation (`GINEncoder.forward`), which compounds
+        the scale further across layers — verified to drive `sigma` in
+        `InventoryActor` to ~1e-27 even at random initialization, and to
+        NaN within the first PPO update once gradients start flowing.
+        Cached per env (keyed by `id`) since it depends only on the
+        instance's fixed node coordinates.
+        """
+        key = id(env)
+        if key not in self._loc_scale_cache:
+            coords = np.concatenate([env.location.ravel(), env.depot_location.ravel()])
+            self._loc_scale_cache[key] = float(np.max(np.abs(coords))) or 1.0
+        return self._loc_scale_cache[key]
+
+    def _normalize_location(self, features: torch.Tensor, scale: float) -> torch.Tensor:
+        """Divides the leading `loc_dim` (location) columns of `features` by `scale`."""
+        features = features.clone()
+        features[:, : self.loc_dim] = features[:, : self.loc_dim] / scale
+        return features
+
+    def collect_episode(self, env: Any, buffer: RolloutBuffer) -> Dict[str, float]:
+        """
+        Runs one full episode on `env` under the current policy (no
+        gradient tracking) and appends every timestep/routing hop to
+        `buffer`. Mirrors Algorithm 1, lines 4-15, for a single instance.
+
+        Args:
+            env: An `IRPEnv`-like environment (see `IRPEnv`'s interaction
+                loop docstring).
+            buffer: Rollout storage to append this episode's transitions to.
+                Not cleared here — the caller decides when to clear/update.
+
+        Returns:
+            Dict with this episode's summed inventory reward, routing
+            reward, and their total (all as plain floats, for logging).
+        """
+        _, critic_obs, _ = env.reset()
+        total_r_inv, total_r_vrp = 0.0, 0.0
+        terminated = False
+        scale = self._location_scale(env)
+
+        with torch.no_grad():
+            while not terminated:
+                critic_node_feats = self._normalize_location(
+                    build_critic_features(critic_obs), scale
+                ).to(self.device)
+                critic_global_feats = build_global_features(critic_obs).to(self.device)
+                value = self.critic(critic_node_feats, critic_global_feats)
+
+                inv_obs = self._inventory_obs_from_critic(critic_obs)
+                inv_node_feats = self._normalize_location(
+                    build_inventory_features(inv_obs), scale
+                ).to(self.device)
+                inv_hist_feats = build_inventory_history(inv_obs).to(self.device)
+                inv_action, inv_logp = self.inv_actor.act(inv_node_feats, inv_hist_feats)
+
+                routing_obs, r_inv, _ = env.inventory_action_step(inv_action.cpu().numpy())
+                total_r_inv += r_inv
+
+                # This timestep's index among `add_timestep` calls so far — assigned
+                # before `add_timestep` runs, since every routing hop below must be
+                # tagged with it, but the timestep record itself can only be added
+                # once the tour (and therefore `terminated`) is known.
+                timestep_index = len(buffer.r_inv)
+
+                while True:
+                    route_node_feats = self._normalize_location(
+                        build_routing_features(routing_obs), scale
+                    ).to(self.device)
+                    mask = torch.from_numpy(routing_obs["visited_mask"]).to(self.device)
+                    route_action, route_logp = self.routing_actor.act(route_node_feats, mask)
+
+                    routing_obs, r_vrp, next_critic_obs, terminated, _, _ = env.routing_action_step(
+                        route_action
+                    )
+                    total_r_vrp += r_vrp
+
+                    buffer.add_routing_step(
+                        routing_obs=route_node_feats,
+                        routing_mask=mask,
+                        action=route_action,
+                        log_prob=route_logp,
+                        r_vrp=r_vrp,
+                        timestep_index=timestep_index,
+                    )
+
+                    if next_critic_obs is not None:
+                        critic_obs = next_critic_obs
+                        break
+
+                buffer.add_timestep(
+                    critic_obs=(critic_node_feats, critic_global_feats),
+                    inventory_obs=inv_node_feats,
+                    inventory_history=inv_hist_feats,
+                    action=inv_action,
+                    log_prob=inv_logp,
+                    r_inv=r_inv,
+                    value=value,
+                    done=terminated,
+                )
+
+        return {
+            "r_inv": total_r_inv,
+            "r_vrp": total_r_vrp,
+            "total_reward": total_r_inv + total_r_vrp,
+        }
+
+    @staticmethod
+    def _normalize(advantages: torch.Tensor) -> torch.Tensor:
+        if advantages.numel() <= 1:
+            return advantages
+        return (advantages - advantages.mean()) / (advantages.std() + 1e-8)
+
+    def update(self, buffer: RolloutBuffer, ppo_epochs: int, batch_size: int) -> Dict[str, float]:
+        """
+        Runs `ppo_epochs` passes of minibatch PPO updates over everything
+        currently in `buffer` (Algorithm 1, lines 16-20), then clears it.
+
+        For each minibatch record (one environment timestep), the critic is
+        re-evaluated on that timestep's joint state, the inventory actor is
+        re-evaluated on its single per-timestep action, and the routing
+        actor is re-evaluated on every hop taken during that timestep's tour
+        — each hop's clipped surrogate term uses that timestep's single
+        `adv_vrp` (Fig. 3's sub-action decomposition: multiple routing
+        sub-actions share one timestep-level reward/advantage).
+
+        Args:
+            buffer: Rollout storage populated by one or more calls to
+                `collect_episode`.
+            ppo_epochs: Number of full passes over the buffer's minibatches.
+            batch_size: Timesteps per minibatch (see `RolloutBuffer.get_batches`).
+
+        Returns:
+            Dict of mean losses/entropy across all minibatches and epochs,
+            for logging.
+        """
+        buffer.compute_advantage(self.gamma)
+        buffer.adv_inv = self._normalize(buffer.adv_inv)
+        buffer.adv_vrp = self._normalize(buffer.adv_vrp)
+
+        stats = {"policy_inv": 0.0, "policy_vrp": 0.0, "value": 0.0, "entropy": 0.0}
+        num_updates = 0
+
+        for _ in range(ppo_epochs):
+            for batch in buffer.get_batches(batch_size):
+                self.critic_optimizer.zero_grad()
+                self.inv_optimizer.zero_grad()
+                self.routing_optimizer.zero_grad()
+
+                clip_inv_sum = torch.zeros((), device=self.device)
+                clip_vrp_sum = torch.zeros((), device=self.device)
+                value_loss_sum = torch.zeros((), device=self.device)
+                entropy_inv_sum = torch.zeros((), device=self.device)
+                entropy_vrp_sum = torch.zeros((), device=self.device)
+                num_hops = 0
+
+                for record in batch:
+                    node_feats, global_feats = record["critic_obs"]
+                    value = self.critic(node_feats.to(self.device), global_feats.to(self.device)).squeeze(-1)
+
+                    return_inv = record["return_inv"].to(self.device)
+                    return_vrp = record["return_vrp"].to(self.device)
+                    value_loss_sum = value_loss_sum + F.mse_loss(value, return_inv) + F.mse_loss(value, return_vrp)
+
+                    inv = record["inventory"]
+                    new_logp_inv, entropy_inv = self.inv_actor.evaluate(
+                        inv["node_features"].to(self.device),
+                        inv["history_features"].to(self.device),
+                        inv["action"].to(self.device),
+                    )
+                    adv_inv = inv["advantage"].to(self.device)
+                    ratio_inv = torch.exp(new_logp_inv - inv["old_log_prob"].to(self.device))
+                    clip_inv_sum = clip_inv_sum + torch.min(
+                        ratio_inv * adv_inv,
+                        torch.clamp(ratio_inv, 1 - self.clip_eps, 1 + self.clip_eps) * adv_inv,
+                    )
+                    entropy_inv_sum = entropy_inv_sum + entropy_inv
+
+                    for hop in record["routing"]:
+                        new_logp_vrp, entropy_vrp = self.routing_actor.evaluate(
+                            hop["node_features"].to(self.device),
+                            hop["mask"].to(self.device),
+                            torch.as_tensor(hop["action"], device=self.device),
+                        )
+                        adv_vrp = hop["advantage"].to(self.device)
+                        ratio_vrp = torch.exp(new_logp_vrp - hop["old_log_prob"].to(self.device))
+                        clip_vrp_sum = clip_vrp_sum + torch.min(
+                            ratio_vrp * adv_vrp,
+                            torch.clamp(ratio_vrp, 1 - self.clip_eps, 1 + self.clip_eps) * adv_vrp,
+                        )
+                        entropy_vrp_sum = entropy_vrp_sum + entropy_vrp
+                        num_hops += 1
+
+                num_records = len(batch)
+                num_hops = max(num_hops, 1)
+
+                value_loss = value_loss_sum / num_records
+                inv_policy_loss = -(clip_inv_sum / num_records)
+                vrp_policy_loss = -(clip_vrp_sum / num_hops)
+                entropy_inv = entropy_inv_sum / num_records
+                entropy_vrp = entropy_vrp_sum / num_hops
+
+                critic_loss = self.value_coef * value_loss
+                inv_loss = inv_policy_loss - self.entropy_coef * entropy_inv
+                routing_loss = vrp_policy_loss - self.entropy_coef * entropy_vrp
+
+                # One backward pass over the sum is equivalent to three separate
+                # ones here (the three branches share no parameters), but cheaper;
+                # clipping and stepping are still done per-network below.
+                (critic_loss + inv_loss + routing_loss).backward()
+
+                torch.nn.utils.clip_grad_norm_(self.critic.parameters(), self.max_grad_norm)
+                torch.nn.utils.clip_grad_norm_(self.inv_actor.parameters(), self.max_grad_norm)
+                torch.nn.utils.clip_grad_norm_(self.routing_actor.parameters(), self.max_grad_norm)
+
+                self.critic_optimizer.step()
+                self.inv_optimizer.step()
+                self.routing_optimizer.step()
+
+                stats["policy_inv"] += inv_policy_loss.item()
+                stats["policy_vrp"] += vrp_policy_loss.item()
+                stats["value"] += value_loss.item()
+                stats["entropy"] += (entropy_inv.item() + entropy_vrp.item()) / 2
+                num_updates += 1
+
+        buffer.clear()
+        return {k: v / max(num_updates, 1) for k, v in stats.items()}
+
+    def train(
+        self,
+        envs: List[Any],
+        num_epochs: int,
+        episodes_per_epoch: int,
+        ppo_epochs: int,
+        batch_size: int,
+        log_every: int = 1,
+        on_epoch_end: Any = None,
+    ) -> None:
+        """
+        Top-level training loop (Algorithm 1): for each epoch, sample
+        `episodes_per_epoch` instances from `envs` (with replacement,
+        matching "sampling m instances from a uniform distribution"),
+        collect one full episode from each into a shared buffer, then run
+        `ppo_epochs` of minibatch PPO updates on everything collected.
+
+        Args:
+            envs: Pool of environment instances to sample episodes from.
+                Pass a single-element list to train on one fixed instance.
+            num_epochs: Number of outer collect+update cycles.
+            episodes_per_epoch: Number of episodes collected per epoch
+                before each PPO update (m in Algorithm 1).
+            ppo_epochs: PPO epochs per update (see `update`).
+            batch_size: Minibatch size per PPO epoch (see `update`).
+            log_every: Print aggregated episode stats every this many epochs.
+            on_epoch_end: Optional callback `(epoch, episode_stats, losses)`
+                invoked after each epoch's update, e.g. for checkpointing.
+        """
+        buffer = RolloutBuffer()
+
+        for epoch in range(1, num_epochs + 1):
+            episode_stats = []
+            for _ in range(episodes_per_epoch):
+                env = envs[torch.randint(len(envs), (1,)).item()]
+                episode_stats.append(self.collect_episode(env, buffer))
+
+            losses = self.update(buffer, ppo_epochs=ppo_epochs, batch_size=batch_size)
+
+            if log_every and epoch % log_every == 0:
+                mean_r_inv = sum(s["r_inv"] for s in episode_stats) / len(episode_stats)
+                mean_r_vrp = sum(s["r_vrp"] for s in episode_stats) / len(episode_stats)
+                print(
+                    f"[epoch {epoch:5d}] "
+                    f"mean r_inv={mean_r_inv:10.2f}  mean r_vrp={mean_r_vrp:10.2f}  "
+                    f"policy_inv={losses['policy_inv']:.4f}  policy_vrp={losses['policy_vrp']:.4f}  "
+                    f"value={losses['value']:.4f}  entropy={losses['entropy']:.4f}"
+                )
+
+            if on_epoch_end is not None:
+                on_epoch_end(epoch, episode_stats, losses)
+
+    def save(self, path: str) -> None:
+        torch.save(
+            {
+                "critic": self.critic.state_dict(),
+                "inv_actor": self.inv_actor.state_dict(),
+                "routing_actor": self.routing_actor.state_dict(),
+                "critic_optimizer": self.critic_optimizer.state_dict(),
+                "inv_optimizer": self.inv_optimizer.state_dict(),
+                "routing_optimizer": self.routing_optimizer.state_dict(),
+            },
+            path,
+        )
+
+    def load(self, path: str) -> None:
+        checkpoint = torch.load(path, map_location=self.device)
+        self.critic.load_state_dict(checkpoint["critic"])
+        self.inv_actor.load_state_dict(checkpoint["inv_actor"])
+        self.routing_actor.load_state_dict(checkpoint["routing_actor"])
+        self.critic_optimizer.load_state_dict(checkpoint["critic_optimizer"])
+        self.inv_optimizer.load_state_dict(checkpoint["inv_optimizer"])
+        self.routing_optimizer.load_state_dict(checkpoint["routing_optimizer"])
