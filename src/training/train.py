@@ -21,14 +21,41 @@ from utils.logger import ResultsLogger
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
 
+def _looks_like_instance_file(path: str) -> bool:
+    """
+    A real instance file's first line is `<num_nodes> <episode_length>
+    <vehicle_capacity>`. Manifest files living in the same data folders
+    (e.g. `comp_format_instances.dat`, `test_instances.dat`) just list
+    instance filenames one per line, and fail this check — `convert_instance`
+    would otherwise crash trying to parse a filename as three numbers.
+    """
+    try:
+        with open(path) as f:
+            first_line = f.readline().split()
+        if len(first_line) != 3:
+            return False
+        int(first_line[0])
+        int(first_line[1])
+        float(first_line[2])
+        return True
+    except (OSError, ValueError):
+        return False
+
+
 def build_envs(args: argparse.Namespace) -> Tuple[list, List[str]]:
-    """Resolves --instance/--data-glob into a list of IRPEnv instances."""
+    """Resolves --instance/--data-glob into a list of IRPEnv instances (the m problem instances Algorithm 1 samples)."""
     if args.instance:
         paths = [args.instance]
     else:
-        paths = sorted(glob.glob(args.data_glob))
-        if not paths:
+        candidates = sorted(glob.glob(args.data_glob))
+        if not candidates:
             raise FileNotFoundError(f"No instance files matched: {args.data_glob}")
+        paths = [p for p in candidates if _looks_like_instance_file(p)]
+        skipped = [p for p in candidates if p not in paths]
+        if skipped:
+            print(f"Skipping {len(skipped)} non-instance file(s): {[Path(p).name for p in skipped]}")
+        if not paths:
+            raise FileNotFoundError(f"No valid instance files found among: {args.data_glob}")
 
     envs = [
         IRPEnv(
@@ -46,24 +73,31 @@ def build_envs(args: argparse.Namespace) -> Tuple[list, List[str]]:
 
 
 def derive_run_name(paths: List[str]) -> str:
-    """Names a run after its instance(s): the single stem, or `multi_<n>_<first_stem>`."""
+    """Names a run after its instance(s): the single stem, the shared parent folder
+    name (+ count) when every instance comes from one subfolder, or `multi_<n>_<first_stem>`."""
     stems = [Path(p).stem for p in paths]
     if len(stems) == 1:
         return stems[0]
+    parents = {Path(p).parent.name for p in paths}
+    if len(parents) == 1:
+        return f"{next(iter(parents))}_{len(stems)}instances"
     return f"multi_{len(stems)}_{stems[0]}"
 
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Train MTPPO on the IRP-VMI benchmark instances.")
 
-    default_instance = PROJECT_ROOT / "data" / "Instances_lowcost_H6" / "abs1n5.dat"
+    default_data_dir = PROJECT_ROOT / "data" / "Instances_lowcost_H6"
     parser.add_argument("--instance", type=str, default=None, help="Path to a single benchmark instance file.")
     parser.add_argument(
         "--data-glob",
         type=str,
-        default=str(default_instance),
-        help="Glob pattern for one or more instance files to sample from each epoch "
-        "(ignored if --instance is set).",
+        default=str(default_data_dir / "*.dat"),
+        help="Glob pattern for the m problem instances trained on: every matching file "
+        "is rolled out once per epoch (Algorithm 1's \"sampling m instances\", realized "
+        "here as the fixed pool of instance files touched every epoch). Manifest-style "
+        "files that don't parse as an instance (e.g. comp_format_instances.dat) are "
+        "skipped automatically. Ignored if --instance is set.",
     )
 
     parser.add_argument("--loc-dim", type=int, default=2)
@@ -83,9 +117,6 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--max-grad-norm", type=float, default=0.5)
 
     parser.add_argument("--num-epochs", type=int, default=200)
-    parser.add_argument("--episodes-per-epoch", type=int, default=4)
-    parser.add_argument("--ppo-epochs", type=int, default=4)
-    parser.add_argument("--batch-size", type=int, default=32)
     parser.add_argument("--log-every", type=int, default=1)
 
     parser.add_argument("--seed", type=int, default=0)
@@ -156,14 +187,29 @@ def main() -> None:
     )
 
     def run_evaluation(epoch):
+        results = []
         for env, path in zip(envs, instance_paths):
             metrics = mtppo.evaluate_episode(env)
             metrics = {"instance": Path(path).stem, **metrics}
             logger.log_metrics("eval", epoch, metrics)
+            results.append(metrics)
+
+        if len(results) <= 6:
+            for metrics in results:
+                print(
+                    f"  [eval @ epoch {epoch:5d}] {metrics['instance']:>12s}  "
+                    f"inv_cost={metrics['inv_cost']:9.2f}  vrp_dist={metrics['vrp_distance']:8.2f}  "
+                    f"fill_rate={metrics['fill_rate']:6.2f}%  total_cost={metrics['total_cost']:9.2f}"
+                )
+        else:
+            # Too many instances to print one line each — full detail is still in
+            # eval.csv; here just show the mean across all m instances.
+            n = len(results)
+            mean = lambda key: sum(m[key] for m in results) / n
             print(
-                f"  [eval @ epoch {epoch:5d}] {metrics['instance']:>12s}  "
-                f"inv_cost={metrics['inv_cost']:9.2f}  vrp_dist={metrics['vrp_distance']:8.2f}  "
-                f"fill_rate={metrics['fill_rate']:6.2f}%  total_cost={metrics['total_cost']:9.2f}"
+                f"  [eval @ epoch {epoch:5d}] {n} instances  "
+                f"mean inv_cost={mean('inv_cost'):9.2f}  mean vrp_dist={mean('vrp_distance'):8.2f}  "
+                f"mean fill_rate={mean('fill_rate'):6.2f}%  mean total_cost={mean('total_cost'):9.2f}"
             )
 
     def on_epoch_end(epoch, episode_stats, losses):
@@ -190,9 +236,6 @@ def main() -> None:
         mtppo.train(
             envs=envs,
             num_epochs=args.num_epochs,
-            episodes_per_epoch=args.episodes_per_epoch,
-            ppo_epochs=args.ppo_epochs,
-            batch_size=args.batch_size,
             log_every=args.log_every,
             on_epoch_end=on_epoch_end,
         )
