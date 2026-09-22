@@ -11,13 +11,16 @@ class ResultsLogger:
         directory under `results_root` and writes:
 
             <results_root>/<run_name>/
-                config.json      -- hyperparameters, written once via `log_config`
-                metrics.csv       -- one row per `log_epoch` call, flushed immediately
-                checkpoints/      -- created on demand by `checkpoint_path`
+                config.json       -- hyperparameters, written once via `log_config`
+                <name>.csv         -- one row per `log_metrics(name, ...)` call, flushed
+                                      immediately (e.g. "metrics.csv" for per-epoch
+                                      training stats, "eval.csv" for periodic greedy
+                                      evaluation runs — see `MTPPO.evaluate_episode`)
+                checkpoints/       -- created on demand by `checkpoint_path`
 
-        `metrics.csv`'s columns are fixed by the first `log_epoch` call's
-        keys (via `csv.DictWriter`); every later call must pass the same
-        keys.
+        Each named stream's CSV columns are fixed by its first `log_metrics`
+        call's keys (via `csv.DictWriter`); every later call to that stream
+        must pass the same keys.
     """
 
     def __init__(self, results_root: str, run_name: Optional[str] = None) -> None:
@@ -26,27 +29,34 @@ class ResultsLogger:
         self.run_dir = Path(results_root) / self.run_name
         self.run_dir.mkdir(parents=True, exist_ok=True)
 
-        self._csv_path = self.run_dir / "metrics.csv"
-        self._csv_file = None
-        self._csv_writer = None
+        self._csv_files: Dict[str, Any] = {}
+        self._csv_writers: Dict[str, Any] = {}
 
     def log_config(self, config: Dict[str, Any]) -> None:
         """Writes `config` (e.g. CLI args/hyperparameters) as pretty-printed JSON."""
         with open(self.run_dir / "config.json", "w") as f:
             json.dump(config, f, indent=2, default=str)
 
+    def log_metrics(self, name: str, step: int, metrics: Dict[str, Any], step_key: str = "epoch") -> None:
+        """
+        Appends one row to `<name>.csv`: `step_key` plus every key in `metrics`.
+        A given `name` opens (and fixes the columns of) its own CSV file on
+        first use.
+        """
+        row = {step_key: step, **metrics}
+        writer = self._csv_writers.get(name)
+        if writer is None:
+            f = open(self.run_dir / f"{name}.csv", "w", newline="")
+            writer = csv.DictWriter(f, fieldnames=list(row.keys()))
+            writer.writeheader()
+            self._csv_files[name] = f
+            self._csv_writers[name] = writer
+        writer.writerow(row)
+        self._csv_files[name].flush()
+
     def log_epoch(self, epoch: int, metrics: Dict[str, Any]) -> None:
-        """
-        Appends one row to `metrics.csv`: `epoch` plus every key in `metrics`.
-        The column set is fixed by whichever call opens the file first.
-        """
-        row = {"epoch": epoch, **metrics}
-        if self._csv_writer is None:
-            self._csv_file = open(self._csv_path, "w", newline="")
-            self._csv_writer = csv.DictWriter(self._csv_file, fieldnames=list(row.keys()))
-            self._csv_writer.writeheader()
-        self._csv_writer.writerow(row)
-        self._csv_file.flush()
+        """Shorthand for `log_metrics("metrics", epoch, metrics)` (per-epoch training stats)."""
+        self.log_metrics("metrics", epoch, metrics)
 
     def checkpoint_path(self, name: str) -> str:
         """Returns a path under `<run_dir>/checkpoints/`, creating that directory if needed."""
@@ -55,7 +65,7 @@ class ResultsLogger:
         return str(checkpoint_dir / name)
 
     def close(self) -> None:
-        if self._csv_file is not None:
-            self._csv_file.close()
-            self._csv_file = None
-            self._csv_writer = None
+        for f in self._csv_files.values():
+            f.close()
+        self._csv_files = {}
+        self._csv_writers = {}
