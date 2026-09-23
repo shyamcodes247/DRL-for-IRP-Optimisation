@@ -3,7 +3,7 @@ import glob
 import os
 import sys
 from pathlib import Path
-from typing import List, Tuple
+from typing import List
 
 import torch
 
@@ -42,22 +42,71 @@ def _looks_like_instance_file(path: str) -> bool:
         return False
 
 
-def build_envs(args: argparse.Namespace) -> Tuple[list, List[str]]:
-    """Resolves --instance/--data-glob into a list of IRPEnv instances (the m problem instances Algorithm 1 samples)."""
+def _read_manifest(manifest_path: str, data_root: str) -> List[str]:
+    """
+    Reads a manifest file (a plain list of instance paths relative to
+    `data_root`, one per line — e.g. `data/splits/train_by_replicate.txt`)
+    and resolves each to a full path.
+    """
+    with open(manifest_path) as f:
+        names = [line.strip() for line in f if line.strip()]
+    return [str(Path(data_root) / name) for name in names]
+
+
+def _filter_instance_files(candidates: List[str]) -> List[str]:
+    """Drops manifest-style files (e.g. comp_format_instances.dat) from a candidate list."""
+    paths = [p for p in candidates if _looks_like_instance_file(p)]
+    skipped = [p for p in candidates if p not in paths]
+    if skipped:
+        print(f"Skipping {len(skipped)} non-instance file(s): {[Path(p).name for p in skipped]}")
+    return paths
+
+
+def resolve_train_paths(args: argparse.Namespace) -> List[str]:
+    """
+    Resolves the training instance pool (the m instances Algorithm 1 samples
+    each epoch) from, in priority order: --instance (a single file),
+    --train-manifest (an explicit list, e.g. for a train/eval split), or
+    --data-glob (every matching file, the default).
+    """
     if args.instance:
-        paths = [args.instance]
+        return [args.instance]
+    if args.train_manifest:
+        candidates = _read_manifest(args.train_manifest, args.data_root)
     else:
         candidates = sorted(glob.glob(args.data_glob))
-        if not candidates:
-            raise FileNotFoundError(f"No instance files matched: {args.data_glob}")
-        paths = [p for p in candidates if _looks_like_instance_file(p)]
-        skipped = [p for p in candidates if p not in paths]
-        if skipped:
-            print(f"Skipping {len(skipped)} non-instance file(s): {[Path(p).name for p in skipped]}")
-        if not paths:
-            raise FileNotFoundError(f"No valid instance files found among: {args.data_glob}")
+    if not candidates:
+        raise FileNotFoundError(
+            f"No instance files found (--train-manifest={args.train_manifest!r}, "
+            f"--data-glob={args.data_glob!r})."
+        )
+    paths = _filter_instance_files(candidates)
+    if not paths:
+        raise FileNotFoundError("No valid instance files found among the resolved training candidates.")
+    return paths
 
-    envs = [
+
+def resolve_eval_paths(args: argparse.Namespace, train_paths: List[str]) -> List[str]:
+    """
+    Resolves the held-out evaluation pool from --eval-manifest. Without one,
+    falls back to evaluating on the training pool itself (the prior
+    behavior) — returns `train_paths` unchanged (same object), so callers
+    can skip rebuilding envs for it.
+    """
+    if not args.eval_manifest:
+        return train_paths
+    candidates = _read_manifest(args.eval_manifest, args.data_root)
+    if not candidates:
+        raise FileNotFoundError(f"No instance files found in eval manifest: {args.eval_manifest}")
+    paths = _filter_instance_files(candidates)
+    if not paths:
+        raise FileNotFoundError(f"No valid instance files found in eval manifest: {args.eval_manifest}")
+    return paths
+
+
+def build_envs(paths: List[str], args: argparse.Namespace) -> list:
+    """Builds one IRPEnv per path, all sharing the same environment hyperparameters."""
+    return [
         IRPEnv(
             data_file_path=path,
             loc_dim=args.loc_dim,
@@ -68,8 +117,6 @@ def build_envs(args: argparse.Namespace) -> Tuple[list, List[str]]:
         )
         for path in paths
     ]
-    print(f"Loaded {len(envs)} instance(s): {[Path(p).name for p in paths]}")
-    return envs, paths
 
 
 def derive_run_name(paths: List[str]) -> str:
@@ -97,7 +144,31 @@ def parse_args() -> argparse.Namespace:
         "is rolled out once per epoch (Algorithm 1's \"sampling m instances\", realized "
         "here as the fixed pool of instance files touched every epoch). Manifest-style "
         "files that don't parse as an instance (e.g. comp_format_instances.dat) are "
-        "skipped automatically. Ignored if --instance is set.",
+        "skipped automatically. Ignored if --instance or --train-manifest is set.",
+    )
+    parser.add_argument(
+        "--data-root",
+        type=str,
+        default=str(PROJECT_ROOT / "data"),
+        help="Root directory that --train-manifest/--eval-manifest entries are resolved "
+        "relative to.",
+    )
+    parser.add_argument(
+        "--train-manifest",
+        type=str,
+        default=None,
+        help="Path to a manifest file (e.g. data/splits/train_by_replicate.txt) listing "
+        "the m training instances, one path per line, relative to --data-root. Overrides "
+        "--data-glob; ignored if --instance is set.",
+    )
+    parser.add_argument(
+        "--eval-manifest",
+        type=str,
+        default=None,
+        help="Path to a manifest file (e.g. data/splits/eval_by_replicate.txt) listing "
+        "held-out instances, one path per line, relative to --data-root, evaluated "
+        "greedily every --eval-every epochs but never trained on. Without this, "
+        "evaluation runs on the training pool itself (no generalization signal).",
     )
 
     parser.add_argument("--loc-dim", type=int, default=2)
@@ -153,9 +224,23 @@ def main() -> None:
 
     torch.manual_seed(args.seed)
 
-    envs, instance_paths = build_envs(args)
+    def _describe(paths: List[str]) -> str:
+        names = [Path(p).name for p in paths]
+        return str(names) if len(names) <= 10 else f"{len(names)} files, e.g. {names[:3]} ... {names[-1]}"
 
-    run_name = args.run_name or derive_run_name(instance_paths)
+    train_paths = resolve_train_paths(args)
+    train_envs = build_envs(train_paths, args)
+    print(f"Loaded {len(train_envs)} training instance(s): {_describe(train_paths)}")
+
+    eval_paths = resolve_eval_paths(args, train_paths)
+    if eval_paths is train_paths:
+        eval_envs = train_envs
+        print("Evaluating on the training pool (pass --eval-manifest for a held-out generalization check).")
+    else:
+        eval_envs = build_envs(eval_paths, args)
+        print(f"Loaded {len(eval_envs)} held-out evaluation instance(s): {_describe(eval_paths)}")
+
+    run_name = args.run_name or derive_run_name(train_paths)
 
     logger = ResultsLogger(results_root=args.results_dir, run_name=run_name)
     logger.log_config(vars(args))
@@ -188,7 +273,7 @@ def main() -> None:
 
     def run_evaluation(epoch):
         results = []
-        for env, path in zip(envs, instance_paths):
+        for env, path in zip(eval_envs, eval_paths):
             metrics = mtppo.evaluate_episode(env)
             metrics = {"instance": Path(path).stem, **metrics}
             logger.log_metrics("eval", epoch, metrics)
@@ -234,7 +319,7 @@ def main() -> None:
 
     try:
         mtppo.train(
-            envs=envs,
+            envs=train_envs,
             num_epochs=args.num_epochs,
             log_every=args.log_every,
             on_epoch_end=on_epoch_end,
