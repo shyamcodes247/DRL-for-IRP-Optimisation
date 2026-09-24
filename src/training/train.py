@@ -275,14 +275,20 @@ def main() -> None:
         results = []
         for env, path in zip(eval_envs, eval_paths):
             metrics = mtppo.evaluate_episode(env)
-            metrics = {"instance": Path(path).stem, **metrics}
+            # `Path(path).parent.name` disambiguates instances that share a filename
+            # across data subfolders (e.g. abs5n30.dat exists under both
+            # Instances_highcost_H3 and Instances_lowcost_H3, with different cost
+            # parameters) — logging the stem alone would make them indistinguishable
+            # in eval.csv.
+            instance_label = f"{Path(path).parent.name}/{Path(path).stem}"
+            metrics = {"instance": instance_label, **metrics}
             logger.log_metrics("eval", epoch, metrics)
             results.append(metrics)
 
         if len(results) <= 6:
             for metrics in results:
                 print(
-                    f"  [eval @ epoch {epoch:5d}] {metrics['instance']:>12s}  "
+                    f"  [eval @ epoch {epoch:5d}] {metrics['instance']:>32s}  "
                     f"inv_cost={metrics['inv_cost']:9.2f}  vrp_dist={metrics['vrp_distance']:8.2f}  "
                     f"fill_rate={metrics['fill_rate']:6.2f}%  total_cost={metrics['total_cost']:9.2f}"
                 )
@@ -297,7 +303,10 @@ def main() -> None:
                 f"mean fill_rate={mean('fill_rate'):6.2f}%  mean total_cost={mean('total_cost'):9.2f}"
             )
 
+    last_eval_epoch = None
+
     def on_epoch_end(epoch, episode_stats, losses):
+        nonlocal last_eval_epoch
         mean_r_inv = sum(s["r_inv"] for s in episode_stats) / len(episode_stats)
         mean_r_vrp = sum(s["r_vrp"] for s in episode_stats) / len(episode_stats)
         mean_total = sum(s["total_reward"] for s in episode_stats) / len(episode_stats)
@@ -312,6 +321,7 @@ def main() -> None:
         )
         if args.eval_every and epoch % args.eval_every == 0:
             run_evaluation(epoch)
+            last_eval_epoch = epoch
         if epoch % args.checkpoint_every == 0:
             path = logger.checkpoint_path(f"mtppo_epoch{epoch}.pt")
             mtppo.save(path)
@@ -324,8 +334,13 @@ def main() -> None:
             log_every=args.log_every,
             on_epoch_end=on_epoch_end,
         )
-        print("Final evaluation:")
-        run_evaluation(args.num_epochs)
+        # Skip if the periodic eval (above) already covered the final epoch —
+        # e.g. num_epochs=300 with eval_every=25 triggers it there too, and
+        # running it again would double-log every instance under the same
+        # epoch in eval.csv.
+        if last_eval_epoch != args.num_epochs:
+            print("Final evaluation:")
+            run_evaluation(args.num_epochs)
     finally:
         logger.close()
 
