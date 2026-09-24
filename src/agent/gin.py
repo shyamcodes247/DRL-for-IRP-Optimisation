@@ -65,7 +65,7 @@ class GINEncoder(torch.nn.Module):
             after `len(hidden_dims)` rounds of GIN aggregation.
         """
         for i in range(len(self.mlps)):
-            neighbour_sum = h.sum(dim=0, keepdim=True) - h
+            neighbour_sum = (h.sum(dim=0, keepdim=True) - h) / max(h.shape[0] - 1, 1)
             combined = (1 + self.eps[i])*h + neighbour_sum
             h = self.mlps[i](combined)
 
