@@ -305,14 +305,30 @@ class IRPEnv(gym.Env):
 
         self.depot_inventory -= np.sum(action)
         self.replenishment_amount = action
+        # Retailers needing no delivery are pre-marked visited so the routing
+        # actor never has to detour to them. If literally nobody needs
+        # anything this period, the depot is the only unmasked node, and
+        # `routing_action_step(0)` closes the tour on the first (free) hop —
+        # no special-casing needed here.
+        needs_visit = self.replenishment_amount > 1e-6
+        self.visited_mask = np.zeros(self.num_retailers + 1, dtype=int)
+        self.visited_mask[1:] = ~needs_visit
+
         routing_obs = {
             "location": np.vstack([self.depot_location, self.location]),
             "vehicle_position": self.vehicle_position,
             "replenishment_amount": self.replenishment_amount,
             "current_load_capacity": self.current_load_capacity,
-            "visited_mask": self.visited_mask
+            # `.copy()`: `self.visited_mask` is mutated in place by later
+            # `routing_action_step` calls (`self.visited_mask[0] = 1`, etc.).
+            # `torch.from_numpy` doesn't copy, so a caller storing this array
+            # directly (e.g. into a rollout buffer, to replay much later
+            # during a PPO update) would see it silently change underneath
+            # them — including, worst case, ending up fully masked by the
+            # time it's read back, which NaNs out `Categorical(logits=...)`.
+            "visited_mask": self.visited_mask.copy()
         }
-            
+
         # Deliver, then realise demand. Unmet demand is lost (not backordered): adding
         # `sales_loss` back after subtracting demand floors inventory at zero, and the
         # shortfall is charged below instead of being carried into the next period.
@@ -427,8 +443,13 @@ class IRPEnv(gym.Env):
             self.current_step += 1
 
             # The vehicle must end each tour at the depot, so the return leg is charged
-            # implicitly rather than requiring the agent to select node 0.
-            r_vrp -= self._get_distance(node_1=self.location[self.vehicle_position - 1], node_2=self.depot_location[0]) * self.delivery_cost
+            # implicitly rather than requiring the agent to select node 0 — except when
+            # the tour closes with the vehicle already at the depot (every retailer
+            # needed zero delivery, so it never left): `self.vehicle_position` is 0
+            # there, and `self.location[-1]` would silently charge a bogus leg from
+            # the last retailer instead of correctly charging nothing.
+            if self.vehicle_position != 0:
+                r_vrp -= self._get_distance(node_1=self.location[self.vehicle_position - 1], node_2=self.depot_location[0]) * self.delivery_cost
             self.vehicle_position = 0
 
 
@@ -491,4 +512,3 @@ class IRPEnv(gym.Env):
     # instances impose no travel restrictions between nodes.
     def _create_adjacency_list(self, num_nodes: int) -> Dict[int, List[int]]:
         return {i: [j for j in range(num_nodes) if j != i] for i in range(num_nodes)}
-        
