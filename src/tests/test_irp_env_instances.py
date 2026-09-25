@@ -79,3 +79,41 @@ def test_env_reset_is_reusable(instance_path):
     second = _run_episode(env, rng)
 
     assert first == second == env.episode_length
+
+
+@pytest.mark.parametrize("instance_path", TEST_INSTANCE_PATHS, ids=lambda p: Path(p).stem)
+def test_no_sales_loss_cost_enforces_hard_feasibility(instance_path):
+    """
+    Regression test: with product_price/penalty_factor both None (matching
+    Archetti et al. (2007)'s objective, which has no sales-loss term),
+    IRPEnv must enforce zero stockouts itself — since without an equivalent
+    hard constraint, holding cost alone makes "replenish nothing, ever" the
+    trivial reward-optimal policy (verified in this project to collapse
+    training to zero routing activity). Requesting zero replenishment every
+    period should still produce zero lost sales throughout the episode.
+    """
+    env = IRPEnv(
+        instance_path,
+        loc_dim=LOC_DIM,
+        lookback_window=LOOKBACK_WINDOW,
+        product_price=None,
+        penalty_factor=None,
+    )
+    env.reset()
+    zero_action = np.zeros(env.num_retailers, dtype=np.float32)
+    terminated = False
+
+    while not terminated:
+        routing_obs, _, info = env.inventory_action_step(zero_action)
+        assert info["lost_sales_units"] == 0.0
+
+        guard = 0
+        while True:
+            eligible = np.flatnonzero(routing_obs["visited_mask"] == 0)
+            assert len(eligible) > 0
+            action = int(eligible[0])
+            routing_obs, _, critic_obs, terminated, _, _ = env.routing_action_step(action)
+            if critic_obs is not None:
+                break
+            guard += 1
+            assert guard < 1000

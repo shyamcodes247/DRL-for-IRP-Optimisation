@@ -260,8 +260,13 @@ class IRPEnv(gym.Env):
 
         The requested quantities are made feasible before being committed, in order:
           1. production arrives at the depot,
-          2. the whole request is scaled down proportionally if it exceeds depot stock,
-          3. each node's quantity is capped by its remaining headroom and by the
+          2. if sales-loss isn't costed (`product_price`/`penalty_factor` is `None`),
+             amounts are boosted to at least cover this period's demand — a hard
+             feasibility constraint standing in for the cost term, matching why
+             Archetti et al. (2007)'s model has none (see the inline comment below),
+          3. the whole request is scaled down if it exceeds depot stock (prioritizing
+             the above minimums first, if active, before proportionally),
+          4. each node's quantity is capped by its remaining headroom and by the
              vehicle capacity,
         after which stock moves depot -> retailers, demand is realised, and the
         inventory-side cost is charged.
@@ -285,16 +290,58 @@ class IRPEnv(gym.Env):
 
         # Updates the depot's inventory levels based on delivery amounts
         self.depot_inventory += self.depot_production_rate
+
+        # When sales-loss isn't costed (product_price/penalty_factor is None —
+        # see the lost_sales_cost guard below), matching Archetti et al.
+        # (2007)'s model requires also matching *why* their objective has no
+        # such term: stockouts are a hard feasibility constraint there
+        # (I_i^t >= 0, always), not something priced. Without an equivalent
+        # constraint here, holding cost alone (always positive, with nothing
+        # to counterbalance it) makes "replenish nothing, ever" the trivial
+        # reward-optimal policy — verified to collapse training to zero
+        # deliveries. So when sales-loss costing is off, this bumps delivery
+        # amounts up to (at least) what's needed to avoid a stockout this
+        # period, regardless of what the agent requested — best effort,
+        # subject to real feasibility limits (depot stock, retailer storage,
+        # vehicle capacity): if those are insufficient, a stockout is
+        # genuinely unavoidable here, the same as it would be for an exact
+        # solver facing the same supply/capacity shortfall.
+        hard_feasibility_constraint = self.product_price is None or self.penalty_factor is None
+        if hard_feasibility_constraint:
+            max_deliverable = np.maximum(self.retailer_max_capacity - self.retailers_current_inventory, 0)
+            min_required = np.clip(self.current_demand - self.retailers_current_inventory, 0, max_deliverable)
+            action = np.maximum(action, min_required)
+
         # checks if amount to be delivered exceeds the inventory amount of depot's inventory
-        # Scaled proportionally rather than truncated, so the actor's relative
-        # allocation across retailers is preserved when stock is short.
         if np.sum(action) > self.depot_inventory:
-            scale = self.depot_inventory / np.sum(action)
-            action = action * scale
+            if hard_feasibility_constraint:
+                # Ration scarce depot stock without re-introducing the stockout the
+                # boost above just prevented: satisfy every retailer's minimum first,
+                # and only scale down the discretionary "extra" a retailer requested
+                # beyond its minimum. If depot stock can't even cover every minimum,
+                # that's a genuine supply shortfall — ration the minimums themselves
+                # proportionally (the least-bad option left).
+                extra = action - min_required
+                remaining_after_minimums = self.depot_inventory - np.sum(min_required)
+                if remaining_after_minimums < 0:
+                    total_min = np.sum(min_required)
+                    action = min_required * (self.depot_inventory / total_min) if total_min > 0 else min_required
+                else:
+                    total_extra = np.sum(extra)
+                    scale = min(remaining_after_minimums / total_extra, 1.0) if total_extra > 0 else 1.0
+                    action = min_required + extra * scale
+            else:
+                # Scaled proportionally rather than truncated, so the actor's relative
+                # allocation across retailers is preserved when stock is short.
+                scale = self.depot_inventory / np.sum(action)
+                action = action * scale
 
         # Ensures that any action that results in a break of the max_capacity of retailer is capped
         # Also bounded by vehicle capacity, since a single node's delivery can never
-        # exceed one full vehicle load.
+        # exceed one full vehicle load. (A retailer's own `min_required` above was
+        # already capped by its headroom, so this can only bind the hard-constraint
+        # boost if vehicle capacity itself is too small to cover it — again a
+        # genuinely unavoidable case, same reasoning as above.)
         max_delivery_allowed =  np.minimum(
             self.retailer_max_capacity - self.retailers_current_inventory,
             self.vehicle_capacity
