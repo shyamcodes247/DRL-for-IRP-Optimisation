@@ -368,10 +368,16 @@ class MTPPO:
 
         The critic is re-evaluated on every timestep's joint state, the
         inventory actor on its single per-timestep action, and the routing
-        actor on every hop taken during that timestep's tour — each hop's
-        clipped surrogate term uses that timestep's single `adv_vrp` (Fig.
-        3's sub-action decomposition: multiple routing sub-actions share one
-        timestep-level reward/advantage).
+        actor on every hop taken during that timestep's tour — every term
+        (critic's regression target, inventory's clipped surrogate, every
+        routing hop's clipped surrogate) uses the *same* shared per-timestep
+        return/advantage (see `RolloutBuffer`'s class NOTE): Eq. (35)/(36)
+        write `Â^t` with no per-task subscript, so both actors are trained
+        against one combined (holding + stockout + routing) signal rather
+        than each seeing only its own reward stream — the inventory actor's
+        gradient reflects the routing-cost consequences of its replenishment
+        decisions too. Multiple routing sub-actions within one timestep
+        share that timestep's single value, per Fig. 3's decomposition.
 
         Args:
             buffer: Rollout storage populated by one `collect_episode` call
@@ -381,8 +387,7 @@ class MTPPO:
             Dict of this epoch's losses/entropy, for logging.
         """
         buffer.compute_advantage(self.gamma)
-        buffer.adv_inv = self._normalize(buffer.adv_inv)
-        buffer.adv_vrp = self._normalize(buffer.adv_vrp)
+        buffer.advantages = self._normalize(buffer.advantages)
 
         num_timesteps = len(buffer.r_inv)
         batch = next(buffer.get_batches(num_timesteps))
@@ -402,9 +407,8 @@ class MTPPO:
             node_feats, global_feats = record["critic_obs"]
             value = self.critic(node_feats.to(self.device), global_feats.to(self.device)).squeeze(-1)
 
-            return_inv = record["return_inv"].to(self.device)
-            return_vrp = record["return_vrp"].to(self.device)
-            value_loss_sum = value_loss_sum + F.mse_loss(value, return_inv) + F.mse_loss(value, return_vrp)
+            target_return = record["return"].to(self.device)
+            value_loss_sum = value_loss_sum + F.mse_loss(value, target_return)
 
             inv = record["inventory"]
             new_logp_inv, entropy_inv = self.inv_actor.evaluate(
