@@ -20,13 +20,17 @@ class RolloutBuffer:
         rescaling the same baseline being subtracted, and doesn't depend on
         `t`, which cannot be the intended bootstrap term). This is
         implemented as the standard n-step return baselined against the
-        critic's own value estimate instead: for each task k (inv/vrp),
-        `Â^t_k = (r^t_k + gamma*r^{t+1}_k + ... ) - V(s^t)`, restarting the
-        discounted sum at episode boundaries (`done`). `V(s^t)` is the single
-        shared critic value (Eq. 34 — one critic for the joint state), so
-        both tasks' advantages are baselined against the same value but use
-        each task's own reward stream, matching how Algorithm 1 (lines 8-9)
-        keeps `r^t_inv` and `r^t_vrp` as separate per-timestep sums.
+        critic's own value estimate instead: `Â^t = (r^t + gamma*r^{t+1} +
+        ...) - V(s^t)`, restarting the discounted sum at episode boundaries
+        (`done`). `r^t` here is `r^t_inv + r^t_vrp` — the timestep's total
+        reward, combining both tasks — matching Eq. (35)/Eq. (36) literally:
+        neither is written with a per-task subscript (`Â^t`, not `Â^t_k`),
+        unlike the probability ratio `δ^k_t`, which is task-specific. One
+        shared advantage is used for both actors' surrogate objectives, so
+        the inventory actor's gradient reflects the routing-cost
+        consequences of its replenishment decisions too (e.g. requesting a
+        delivery that forces a long detour), not just its own holding/
+        stockout cost in isolation.
 
         GINEncoder (`gin.py`) has no batched-graph support — it consumes one
         graph's (num_nodes, feature_dim) tensor at a time — so `get_batches`
@@ -50,10 +54,8 @@ class RolloutBuffer:
         self.r_vrp: List[float] = []
         self.timestep_index: List[int] = []
 
-        self.returns_inv: torch.Tensor = torch.empty(0)
-        self.returns_vrp: torch.Tensor = torch.empty(0)
-        self.adv_inv: torch.Tensor = torch.empty(0)
-        self.adv_vrp: torch.Tensor = torch.empty(0)
+        self.returns: torch.Tensor = torch.empty(0)
+        self.advantages: torch.Tensor = torch.empty(0)
 
     def add_timestep(
         self,
@@ -137,15 +139,14 @@ class RolloutBuffer:
 
     def compute_advantage(self, gamma: float) -> None:
         """
-        Computes per-timestep discounted returns and advantages for both
-        actors (see the class NOTE for the estimator used). Must be called
-        after a rollout is fully collected and before `get_batches`.
+        Computes one shared, per-timestep discounted return/advantage series
+        used by both actors (see the class NOTE). Must be called after a
+        rollout is fully collected and before `get_batches`.
 
         Hop-level `r_vrp` rewards are first summed by `timestep_index` into
         one total per timestep (mirroring `r^t_vrp` in Algorithm 1, line 9),
-        so the routing return/advantage series lines up 1:1 with
-        `r_inv`/`values`/`done` — the same alignment every routing hop is
-        looked up against in `get_batches`.
+        then added to that timestep's `r_inv` to get the combined reward the
+        shared advantage is computed from.
 
         Args:
             gamma: Discount factor.
@@ -155,10 +156,8 @@ class RolloutBuffer:
         for reward, t in zip(self.r_vrp, self.timestep_index):
             r_vrp_per_timestep[t] += reward
 
-        self.returns_inv, self.adv_inv = self._discounted_returns_and_advantages(self.r_inv, gamma)
-        self.returns_vrp, self.adv_vrp = self._discounted_returns_and_advantages(
-            r_vrp_per_timestep.tolist(), gamma
-        )
+        r_combined = (np.asarray(self.r_inv) + r_vrp_per_timestep).tolist()
+        self.returns, self.advantages = self._discounted_returns_and_advantages(r_combined, gamma)
 
     def get_batches(self, batch_size: int) -> Generator[List[Dict[str, Any]], None, None]:
         """
@@ -183,8 +182,7 @@ class RolloutBuffer:
             Lists of records shaped as:
                 {
                     "critic_obs": (node_features, global_features),
-                    "return_inv": scalar tensor,
-                    "return_vrp": scalar tensor,
+                    "return": scalar tensor,
                     "inventory": {
                         "node_features", "history_features", "action",
                         "old_log_prob", "advantage",
@@ -195,6 +193,9 @@ class RolloutBuffer:
                         ...
                     ],
                 }
+            `advantage` is the same shared, per-timestep value in both the
+            "inventory" entry and every "routing" hop for that timestep (see
+            the class NOTE) — not two different values.
         """
         num_timesteps = len(self.r_inv)
         routing_by_timestep: List[List[Dict[str, Any]]] = [[] for _ in range(num_timesteps)]
@@ -204,7 +205,7 @@ class RolloutBuffer:
                 "mask": self.routing_masks[i],
                 "action": self.routing_actions[i],
                 "old_log_prob": self.routing_logprobs[i],
-                "advantage": self.adv_vrp[t],
+                "advantage": self.advantages[t],
             })
 
         order = np.random.permutation(num_timesteps)
@@ -214,14 +215,13 @@ class RolloutBuffer:
             for t in batch_timesteps:
                 batch.append({
                     "critic_obs": self.critic_obs[t],
-                    "return_inv": self.returns_inv[t],
-                    "return_vrp": self.returns_vrp[t],
+                    "return": self.returns[t],
                     "inventory": {
                         "node_features": self.inventory_obs[t],
                         "history_features": self.inventory_history[t],
                         "action": self.inventory_actions[t],
                         "old_log_prob": self.inventory_logprobs[t],
-                        "advantage": self.adv_inv[t],
+                        "advantage": self.advantages[t],
                     },
                     "routing": routing_by_timestep[t],
                 })
@@ -245,10 +245,8 @@ class RolloutBuffer:
         self.r_vrp = []
         self.timestep_index = []
 
-        self.returns_inv = torch.empty(0)
-        self.returns_vrp = torch.empty(0)
-        self.adv_inv = torch.empty(0)
-        self.adv_vrp = torch.empty(0)
+        self.returns = torch.empty(0)
+        self.advantages = torch.empty(0)
 
     def _discounted_returns_and_advantages(
         self, rewards: List[float], gamma: float
