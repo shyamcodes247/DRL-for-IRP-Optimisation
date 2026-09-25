@@ -191,7 +191,17 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--log-every", type=int, default=1)
 
     parser.add_argument("--seed", type=int, default=0)
-    parser.add_argument("--device", type=str, default="cuda" if torch.cuda.is_available() else "cpu")
+    parser.add_argument(
+        "--device",
+        type=str,
+        default="cpu",
+        help="Defaults to cpu, not auto-detected GPU: collect_episode/evaluate_episode "
+        "run one instance's forward pass through a tiny (5-51 node) graph at a time, "
+        "sequentially — verified ~6x slower on this machine's MPS backend than on CPU, "
+        "since per-call GPU dispatch/transfer overhead dominates at this scale. Pass "
+        "--device cuda/mps explicitly if you want to try GPU anyway (e.g. after adding "
+        "batched-graph support).",
+    )
 
     parser.add_argument(
         "--results-dir",
