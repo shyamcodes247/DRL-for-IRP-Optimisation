@@ -262,6 +262,13 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--max-grad-norm", type=float, default=0.5)
 
     parser.add_argument("--num-epochs", type=int, default=200)
+    parser.add_argument(
+        "--ppo-epochs",
+        type=int,
+        default=4,
+        help="Gradient-update passes over each epoch's collected rollout before "
+        "clearing it and collecting the next one (Algorithm 1's 'g' loop).",
+    )
     parser.add_argument("--log-every", type=int, default=1)
 
     parser.add_argument("--seed", type=int, default=0)
@@ -432,6 +439,7 @@ def main() -> None:
         mtppo.train(
             envs=train_envs,
             num_epochs=args.num_epochs,
+            ppo_epochs=args.ppo_epochs,
             log_every=args.log_every,
             on_epoch_end=on_epoch_end,
         )
