@@ -3,7 +3,7 @@ import glob
 import os
 import sys
 from pathlib import Path
-from typing import List
+from typing import List, Optional, Tuple
 
 import torch
 
@@ -104,8 +104,47 @@ def resolve_eval_paths(args: argparse.Namespace, train_paths: List[str]) -> List
     return paths
 
 
+_DEFAULT_PRODUCT_PRICE = 20.0
+_DEFAULT_PENALTY_FACTOR = 0.3
+
+
+def resolve_sales_loss_cost(args: argparse.Namespace) -> Tuple[Optional[float], Optional[float]]:
+    """
+    Resolves --sales-loss-cost/--product-price/--penalty-factor into the
+    (product_price, penalty_factor) pair passed to `IRPEnv`. `(None, None)`
+    disables the lost-sales term in the reward *formula* entirely (see
+    `IRPEnv.inventory_action_step`'s `lost_sales_cost` — with either `None`,
+    that term is never added, not just made small; `r_inv` reduces to just
+    holding cost, matching Archetti et al. (2007)'s objective, which has no
+    sales-loss term at all).
+
+    WARNING: Archetti's model gets away with no such term only because it
+    forbids stockouts as a hard feasibility constraint (I_i^t >= 0, always) —
+    a constraint this environment does not enforce. Disabling the cost
+    without also enforcing that constraint removes the *only* incentive to
+    hold any inventory at all (holding cost stays positive with nothing to
+    counterbalance it), which is a real, verified failure mode, not a
+    theoretical one: it collapsed training to zero deliveries under the
+    shared-advantage design in this project's own experiments.
+    """
+    mode = args.sales_loss_cost
+    if mode == "none":
+        return None, None
+    explicitly_set = args.product_price is not None or args.penalty_factor is not None
+    if mode == "soft" or (mode == "auto" and explicitly_set):
+        price = args.product_price if args.product_price is not None else _DEFAULT_PRODUCT_PRICE
+        penalty = args.penalty_factor if args.penalty_factor is not None else _DEFAULT_PENALTY_FACTOR
+        return price, penalty
+    return None, None  # mode == "auto" and nothing was explicitly set
+
+
 def build_envs(paths: List[str], args: argparse.Namespace) -> list:
-    """Builds one IRPEnv per path, all sharing the same environment hyperparameters."""
+    """
+    Builds one IRPEnv per path, all sharing the same environment
+    hyperparameters. Expects `args.product_price`/`args.penalty_factor` to
+    already be resolved (see `resolve_sales_loss_cost`, applied once in
+    `main`) — not the raw, possibly-`None`/"auto"-implied CLI input.
+    """
     return [
         IRPEnv(
             data_file_path=path,
@@ -173,8 +212,43 @@ def parse_args() -> argparse.Namespace:
 
     parser.add_argument("--loc-dim", type=int, default=2)
     parser.add_argument("--lookback-window", type=int, default=3)
-    parser.add_argument("--product-price", type=float, default=20.0)
-    parser.add_argument("--penalty-factor", type=float, default=0.3)
+    parser.add_argument(
+        "--product-price",
+        type=float,
+        default=None,
+        help=f"Unit price for costing lost sales. Leave unset to let --sales-loss-cost "
+        f"decide; if given (with --sales-loss-cost auto, the default), soft-penalty "
+        f"costing is enabled, falling back to {_DEFAULT_PENALTY_FACTOR} for "
+        f"--penalty-factor if that's still unset.",
+    )
+    parser.add_argument(
+        "--penalty-factor",
+        type=float,
+        default=None,
+        help=f"Multiplier on price for lost-sales cost. Leave unset to let "
+        f"--sales-loss-cost decide; if given (with --sales-loss-cost auto, the "
+        f"default), soft-penalty costing is enabled, falling back to "
+        f"{_DEFAULT_PRODUCT_PRICE} for --product-price if that's still unset.",
+    )
+    parser.add_argument(
+        "--sales-loss-cost",
+        type=str,
+        choices=["auto", "soft", "none"],
+        default="auto",
+        help="Whether the reward includes a lost-sales cost term at all — this changes "
+        "the reward FORMULA, not just its magnitude (see IRPEnv.inventory_action_step: "
+        "with 'none', the lost-sales term is never added, so r_inv reduces to just "
+        "holding cost). 'auto' (default): 'soft' if --product-price or --penalty-factor "
+        "was given explicitly, else 'none'. 'soft': always cost lost sales "
+        f"(defaults to price={_DEFAULT_PRODUCT_PRICE}, penalty={_DEFAULT_PENALTY_FACTOR} "
+        "if not given). 'none': never cost lost sales, regardless of "
+        "--product-price/--penalty-factor. WARNING for 'none'/auto-none: Archetti et al. "
+        "(2007)'s model has no lost-sales term either, but only because it forbids "
+        "stockouts as a hard constraint instead — this environment does not enforce "
+        "that. Disabling the cost without it removes the only incentive to hold any "
+        "inventory at all; verified to collapse training to zero deliveries under the "
+        "shared-advantage design.",
+    )
     parser.add_argument("--delivery-cost", type=float, default=1.0)
 
     parser.add_argument("--gin-dims", type=int, nargs="+", default=[64, 128, 128])
@@ -233,6 +307,23 @@ def main() -> None:
     args = parse_args()
 
     torch.manual_seed(args.seed)
+
+    # Resolve once, then overwrite args with what was actually decided, so
+    # logger.log_config(vars(args)) below records the real values used —
+    # not the raw "auto"/unset CLI input.
+    args.product_price, args.penalty_factor = resolve_sales_loss_cost(args)
+    if args.product_price is None:
+        print(
+            "Sales-loss cost: DISABLED (no lost-sales term in the reward at all, "
+            "matching Archetti et al. (2007)'s objective). WARNING: unlike Archetti's "
+            "model, this environment does not enforce stockouts as a hard constraint — "
+            "without one, disabling the cost removes the only incentive to hold any "
+            "inventory at all. Verified to collapse training to zero deliveries under "
+            "the shared-advantage design. Pass --product-price/--penalty-factor or "
+            "--sales-loss-cost soft to enable costing instead."
+        )
+    else:
+        print(f"Sales-loss cost: ENABLED (product_price={args.product_price}, penalty_factor={args.penalty_factor})")
 
     def _describe(paths: List[str]) -> str:
         names = [Path(p).name for p in paths]
