@@ -184,7 +184,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--gamma", type=float, default=0.9)
     parser.add_argument("--clip-eps", type=float, default=0.2)
     parser.add_argument("--value-coef", type=float, default=0.5)
-    parser.add_argument("--entropy-coef", type=float, default=0.01)
+    parser.add_argument("--entropy-coef", type=float, default=0.001)
     parser.add_argument("--max-grad-norm", type=float, default=0.5)
 
     parser.add_argument("--num-epochs", type=int, default=200)
