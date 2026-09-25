@@ -22,15 +22,18 @@ class RolloutBuffer:
         implemented as the standard n-step return baselined against the
         critic's own value estimate instead: `Â^t = (r^t + gamma*r^{t+1} +
         ...) - V(s^t)`, restarting the discounted sum at episode boundaries
-        (`done`). `r^t` here is `r^t_inv + r^t_vrp` — the timestep's total
-        reward, combining both tasks — matching Eq. (35)/Eq. (36) literally:
-        neither is written with a per-task subscript (`Â^t`, not `Â^t_k`),
-        unlike the probability ratio `δ^k_t`, which is task-specific. One
-        shared advantage is used for both actors' surrogate objectives, so
-        the inventory actor's gradient reflects the routing-cost
-        consequences of its replenishment decisions too (e.g. requesting a
-        delivery that forces a long detour), not just its own holding/
-        stockout cost in isolation.
+        (`done`). `r^t` here is `norm(r^t_inv) + norm(r^t_vrp)` — each
+        stream z-scored across this epoch's whole buffer *before* being
+        combined, so routing cost (typically far larger in magnitude than
+        holding/stockout cost) can't dominate the combined signal purely by
+        scale — matching Eq. (35)/Eq. (36) literally: neither is written
+        with a per-task subscript (`Â^t`, not `Â^t_k`), unlike the
+        probability ratio `δ^k_t`, which is task-specific. One shared
+        advantage is used for both actors' surrogate objectives, so the
+        inventory actor's gradient reflects the routing-cost consequences of
+        its replenishment decisions too (e.g. requesting a delivery that
+        forces a long detour), not just its own holding/stockout cost in
+        isolation.
 
         GINEncoder (`gin.py`) has no batched-graph support — it consumes one
         graph's (num_nodes, feature_dim) tensor at a time — so `get_batches`
@@ -144,9 +147,13 @@ class RolloutBuffer:
         rollout is fully collected and before `get_batches`.
 
         Hop-level `r_vrp` rewards are first summed by `timestep_index` into
-        one total per timestep (mirroring `r^t_vrp` in Algorithm 1, line 9),
-        then added to that timestep's `r_inv` to get the combined reward the
-        shared advantage is computed from.
+        one total per timestep (mirroring `r^t_vrp` in Algorithm 1, line 9).
+        That per-timestep total and `r_inv` are then each z-scored
+        separately across this epoch's whole buffer (Algorithm 1, line 12:
+        `r^t = norm(r^t_inv) + norm(r^t_vrp)`) before being summed into the
+        combined reward the shared advantage is computed from — normalizing
+        *after* combining would let whichever stream has the larger raw
+        magnitude dominate the sum.
 
         Args:
             gamma: Discount factor.
@@ -156,8 +163,14 @@ class RolloutBuffer:
         for reward, t in zip(self.r_vrp, self.timestep_index):
             r_vrp_per_timestep[t] += reward
 
-        r_combined = (np.asarray(self.r_inv) + r_vrp_per_timestep).tolist()
-        self.returns, self.advantages = self._discounted_returns_and_advantages(r_combined, gamma)
+        r_inv_arr = np.asarray(self.r_inv, dtype=np.float64)
+        r_combined = self._normalize_rewards(r_inv_arr) + self._normalize_rewards(r_vrp_per_timestep)
+        self.returns, self.advantages = self._discounted_returns_and_advantages(r_combined.tolist(), gamma)
+
+    @staticmethod
+    def _normalize_rewards(rewards: np.ndarray) -> np.ndarray:
+        """Z-scores one reward stream across the whole buffer (Algorithm 1, line 12's `norm(.)`)."""
+        return (rewards - rewards.mean()) / (rewards.std() + 1e-8)
 
     def get_batches(self, batch_size: int) -> Generator[List[Dict[str, Any]], None, None]:
         """
