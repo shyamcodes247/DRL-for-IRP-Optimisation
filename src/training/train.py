@@ -118,14 +118,15 @@ def resolve_sales_loss_cost(args: argparse.Namespace) -> Tuple[Optional[float], 
     holding cost, matching Archetti et al. (2007)'s objective, which has no
     sales-loss term at all).
 
-    WARNING: Archetti's model gets away with no such term only because it
-    forbids stockouts as a hard feasibility constraint (I_i^t >= 0, always) —
-    a constraint this environment does not enforce. Disabling the cost
-    without also enforcing that constraint removes the *only* incentive to
-    hold any inventory at all (holding cost stays positive with nothing to
-    counterbalance it), which is a real, verified failure mode, not a
-    theoretical one: it collapsed training to zero deliveries under the
-    shared-advantage design in this project's own experiments.
+    NOTE: Archetti's model gets away with no such term only because it forbids
+    stockouts as a hard feasibility constraint (I_i^t >= 0, always). With
+    `mode == "none"`, `IRPEnv.inventory_action_step` enforces that same hard
+    constraint itself (auto-topping up delivery to cover demand, subject to
+    real supply/capacity limits) — without it, disabling the cost would
+    remove the *only* incentive to hold any inventory at all (holding cost
+    stays positive with nothing to counterbalance it), which collapsed
+    training to zero deliveries in this project's own experiments before that
+    constraint was added.
     """
     mode = args.sales_loss_cost
     if mode == "none":
@@ -242,12 +243,11 @@ def parse_args() -> argparse.Namespace:
         "was given explicitly, else 'none'. 'soft': always cost lost sales "
         f"(defaults to price={_DEFAULT_PRODUCT_PRICE}, penalty={_DEFAULT_PENALTY_FACTOR} "
         "if not given). 'none': never cost lost sales, regardless of "
-        "--product-price/--penalty-factor. WARNING for 'none'/auto-none: Archetti et al. "
-        "(2007)'s model has no lost-sales term either, but only because it forbids "
-        "stockouts as a hard constraint instead — this environment does not enforce "
-        "that. Disabling the cost without it removes the only incentive to hold any "
-        "inventory at all; verified to collapse training to zero deliveries under the "
-        "shared-advantage design.",
+        "--product-price/--penalty-factor. Matches Archetti et al. (2007)'s objective, "
+        "which has no lost-sales term either, because it forbids stockouts as a hard "
+        "feasibility constraint instead — IRPEnv enforces that same hard constraint "
+        "itself in 'none' mode (auto-topping up delivery to cover demand, subject to "
+        "real supply/capacity limits), so it stays a like-for-like comparison.",
     )
     parser.add_argument("--delivery-cost", type=float, default=1.0)
 
@@ -322,12 +322,11 @@ def main() -> None:
     if args.product_price is None:
         print(
             "Sales-loss cost: DISABLED (no lost-sales term in the reward at all, "
-            "matching Archetti et al. (2007)'s objective). WARNING: unlike Archetti's "
-            "model, this environment does not enforce stockouts as a hard constraint — "
-            "without one, disabling the cost removes the only incentive to hold any "
-            "inventory at all. Verified to collapse training to zero deliveries under "
-            "the shared-advantage design. Pass --product-price/--penalty-factor or "
-            "--sales-loss-cost soft to enable costing instead."
+            "matching Archetti et al. (2007)'s objective). IRPEnv enforces the same "
+            "hard no-stockout feasibility constraint Archetti's model relies on instead "
+            "(auto-topping up delivery to cover demand, subject to real supply/capacity "
+            "limits). Pass --product-price/--penalty-factor or --sales-loss-cost soft "
+            "to cost lost sales instead."
         )
     else:
         print(f"Sales-loss cost: ENABLED (product_price={args.product_price}, penalty_factor={args.penalty_factor})")
