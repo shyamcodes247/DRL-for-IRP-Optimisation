@@ -171,7 +171,11 @@ class IRPEnv(gym.Env):
                 "visited_mask": gym.spaces.MultiBinary(self.num_retailers + 1)
             }
         )
-        # Index of the next node to visit; 0 is the depot (return-to-depot / reload).
+        # Index of the next node to visit. 0 (the depot) is included for a
+        # uniform action-space size but is always masked out mid-tour (see
+        # `routing_action_step`) — one vehicle route serves the whole period, and
+        # the depot is only touched at its implicit start/return, never as an
+        # agent-selected mid-tour stop.
         self.routing_action_space = gym.spaces.Discrete(self.num_retailers + 1)
 
         # Centralised critic's view: the union of both actors' observations, so it can
@@ -264,10 +268,14 @@ class IRPEnv(gym.Env):
              amounts are boosted to at least cover this period's demand — a hard
              feasibility constraint standing in for the cost term, matching why
              Archetti et al. (2007)'s model has none (see the inline comment below),
-          3. the whole request is scaled down if it exceeds depot stock (prioritizing
-             the above minimums first, if active, before proportionally),
-          4. each node's quantity is capped by its remaining headroom and by the
-             vehicle capacity,
+          3. the whole request is scaled down if its total exceeds what can
+             actually be shipped this period — the smaller of depot stock and
+             one vehicle load (Archetti et al. (2007)'s constraint (9): a single
+             vehicle route per period, capacity `C`, no mid-tour reloads — see
+             `routing_action_step`) — prioritizing the above minimums first, if
+             active, before proportionally,
+          4. each node's quantity is additionally capped by its own remaining
+             headroom,
         after which stock moves depot -> retailers, demand is realised, and the
         inventory-side cost is charged.
 
@@ -312,40 +320,38 @@ class IRPEnv(gym.Env):
             min_required = np.clip(self.current_demand - self.retailers_current_inventory, 0, max_deliverable)
             action = np.maximum(action, min_required)
 
-        # checks if amount to be delivered exceeds the inventory amount of depot's inventory
-        if np.sum(action) > self.depot_inventory:
+        # Total shipped this period is capped by whichever is smaller: what the
+        # depot holds, or what a single vehicle route can carry (Archetti et al.
+        # (2007)'s constraint (9), sum_s x_st <= C — one route per period, no
+        # mid-tour reloads; see `routing_action_step`).
+        effective_capacity = min(self.depot_inventory, self.vehicle_capacity)
+        if np.sum(action) > effective_capacity:
             if hard_feasibility_constraint:
-                # Ration scarce depot stock without re-introducing the stockout the
+                # Ration scarce capacity without re-introducing the stockout the
                 # boost above just prevented: satisfy every retailer's minimum first,
                 # and only scale down the discretionary "extra" a retailer requested
-                # beyond its minimum. If depot stock can't even cover every minimum,
-                # that's a genuine supply shortfall — ration the minimums themselves
-                # proportionally (the least-bad option left).
+                # beyond its minimum. If capacity can't even cover every minimum,
+                # that's a genuine supply/capacity shortfall — ration the minimums
+                # themselves proportionally (the least-bad option left).
                 extra = action - min_required
-                remaining_after_minimums = self.depot_inventory - np.sum(min_required)
+                remaining_after_minimums = effective_capacity - np.sum(min_required)
                 if remaining_after_minimums < 0:
                     total_min = np.sum(min_required)
-                    action = min_required * (self.depot_inventory / total_min) if total_min > 0 else min_required
+                    action = min_required * (effective_capacity / total_min) if total_min > 0 else min_required
                 else:
                     total_extra = np.sum(extra)
                     scale = min(remaining_after_minimums / total_extra, 1.0) if total_extra > 0 else 1.0
                     action = min_required + extra * scale
             else:
                 # Scaled proportionally rather than truncated, so the actor's relative
-                # allocation across retailers is preserved when stock is short.
-                scale = self.depot_inventory / np.sum(action)
+                # allocation across retailers is preserved when capacity is short.
+                scale = effective_capacity / np.sum(action)
                 action = action * scale
 
-        # Ensures that any action that results in a break of the max_capacity of retailer is capped
-        # Also bounded by vehicle capacity, since a single node's delivery can never
-        # exceed one full vehicle load. (A retailer's own `min_required` above was
-        # already capped by its headroom, so this can only bind the hard-constraint
-        # boost if vehicle capacity itself is too small to cover it — again a
-        # genuinely unavoidable case, same reasoning as above.)
-        max_delivery_allowed =  np.minimum(
-            self.retailer_max_capacity - self.retailers_current_inventory,
-            self.vehicle_capacity
-        )
+        # Ensures that any action that results in a break of the max_capacity of retailer is capped.
+        # The combined cap above already keeps the *sum* within one vehicle load,
+        # so this only ever binds a single node's own remaining headroom.
+        max_delivery_allowed = self.retailer_max_capacity - self.retailers_current_inventory
         # `np.maximum(..., 0)` guards against a negative upper bound when a node is
         # already at or above its max capacity.
         action = np.clip(action, 0, np.maximum(max_delivery_allowed, 0))
@@ -353,13 +359,19 @@ class IRPEnv(gym.Env):
         self.depot_inventory -= np.sum(action)
         self.replenishment_amount = action
         # Retailers needing no delivery are pre-marked visited so the routing
-        # actor never has to detour to them. If literally nobody needs
-        # anything this period, the depot is the only unmasked node, and
-        # `routing_action_step(0)` closes the tour on the first (free) hop —
-        # no special-casing needed here.
+        # actor never has to detour to them.
         needs_visit = self.replenishment_amount > 1e-6
         self.visited_mask = np.zeros(self.num_retailers + 1, dtype=int)
         self.visited_mask[1:] = ~needs_visit
+        # The depot stays masked for the whole tour whenever at least one retailer
+        # still needs serving (Archetti et al. (2007)'s constraint (9): one route
+        # per period, no agent-selected mid-tour depot stop — see
+        # `routing_action_step`). Edge case: if literally nobody needs anything
+        # this period, every retailer above is already pre-marked visited, so the
+        # depot must stay the one unmasked node — otherwise `eligible` would be
+        # empty with nothing left to call `routing_action_step` with to close the
+        # (already-done) tour and advance the clock.
+        self.visited_mask[0] = 1 if needs_visit.any() else 0
 
         routing_obs = {
             "location": np.vstack([self.depot_location, self.location]),
@@ -418,9 +430,10 @@ class IRPEnv(gym.Env):
         every retailer has been served, which closes the tour and advances the clock.
 
         Args:
-            action: Index of the node to move to. 0 is the depot, which reloads the
-                vehicle to full capacity; 1..num_retailers are retailers, which are
-                served with their full `replenishment_amount`.
+            action: Index of the node to move to. 1..num_retailers are retailers,
+                which are served with their full `replenishment_amount`. 0 (the
+                depot) is never a valid choice mid-tour — see the note below —
+                and stays masked out for the whole tour.
 
         Returns:
             routing_obs: Next routing observation. Its `visited_mask` is the
@@ -434,9 +447,14 @@ class IRPEnv(gym.Env):
             truncated: Always False; there is no time-limit truncation.
             info: Empty dict.
 
-        Split deliveries are not modelled: a retailer is served in one visit, so a
-        node whose requested amount exceeds the remaining load is unreachable until
-        the vehicle returns to the depot to reload.
+        Split deliveries are not modelled: a retailer is served in one visit. This
+        is never actually infeasible in a well-formed episode, though: one vehicle
+        route serves the whole period (Archetti et al. (2007)'s constraint (9)), so
+        `inventory_action_step` already caps that period's total deliveries at one
+        vehicle load, and the depot is never a mid-tour destination (unlike some
+        multi-trip VRP variants) — the `current_load_capacity`/`load_mask` machinery
+        below is a numerical-precision safety net, not something a valid trajectory
+        should ever actually hit.
         """
         # Resolve both endpoints to coordinates. Retailer arrays are offset by one
         # because index 0 is the depot.
@@ -449,23 +467,16 @@ class IRPEnv(gym.Env):
             self.visited_mask[action] = 1
             self.current_load_capacity -= np.array([self.replenishment_amount[action - 1]], dtype=np.float32)
             self.vehicle_position = action
-        elif action == 0:
-            # Returning to the depot reloads the vehicle to full capacity.
-            self.current_load_capacity = np.array([self.vehicle_capacity], dtype=np.float32)
-            self.vehicle_position = action
 
         # Forces agent to reconsider its action by returning zero reward and masks node out to ensure it is not chosen again
-        # The vehicle does not move in this case, so charging travel would be wrong;
-        # the node is excluded by `load_mask` below until a reload makes it feasible.
+        # The vehicle does not move in this case, so charging travel would be wrong.
         if action != 0 and self.replenishment_amount[action - 1] > self.current_load_capacity[0]:
             distance_cost = 0
 
-        # The depot is only "visited" while the vehicle sits on it; leaving it re-opens
-        # the depot as a selectable action so the agent can go back to reload.
-        if self.vehicle_position == 0:
-            self.visited_mask[0] = 1
-        else:
-            self.visited_mask[0] = 0
+        # `visited_mask[0]` is never touched here (it stays whatever `reset`/the
+        # previous tour-close left it — permanently 1, i.e. masked): the depot is
+        # only touched at the implicit start/return of the single route per period
+        # (see the docstring note), not as a mid-tour stop.
 
         # Action mask handed to the policy: a node is blocked if it has already been
         # served, or if the remaining load cannot cover its full delivery.
