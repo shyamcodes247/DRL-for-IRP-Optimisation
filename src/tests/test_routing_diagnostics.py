@@ -1,10 +1,12 @@
 import numpy as np
+import pytest
 
 from training.routing_diagnostics import (
     RouteRecorder,
     aggregate,
     distance_matrix,
     nearest_neighbour_tour,
+    self_critical_advantage,
     tour_length,
     two_opt_tour,
 )
@@ -84,6 +86,45 @@ def test_delivery_cost_is_divided_out():
     rec.record_hop(0, np.array([1]), 1, -500.0)
     rec.close_period()
     assert rec.periods[0]["travelled"] == 100.0
+
+
+def test_self_critical_advantage_signs():
+    """Beating the reference scores positive, losing to it negative."""
+    assert self_critical_advantage(travelled=80.0, reference=100.0, num_stops=5) == 0.2
+    assert self_critical_advantage(travelled=120.0, reference=100.0, num_stops=5) == -0.2
+    assert self_critical_advantage(travelled=100.0, reference=100.0, num_stops=5) == 0.0
+
+
+def test_self_critical_advantage_is_zero_without_an_ordering_decision():
+    """One stop has no ordering to get right, so it carries no signal."""
+    assert self_critical_advantage(travelled=50.0, reference=100.0, num_stops=1) == 0.0
+    assert self_critical_advantage(travelled=50.0, reference=0.0, num_stops=5) == 0.0
+
+
+def test_recorder_exposes_the_advantage_for_the_period_just_closed():
+    dist = distance_matrix(SQUARE)
+    rec = RouteRecorder(SQUARE, delivery_cost=1.0)
+    position = 0
+    for node in [2, 4, 3, 1]:                      # deliberately crossing
+        rec.record_hop(position, np.array([1, 2, 3, 4]), node, -dist[position, node])
+        position = node
+    rec.record_hop(position, np.array([]), 0, -dist[position, 0])
+    rec.close_period()
+    # A crossing order loses to nearest-neighbour, so the score is negative.
+    assert rec.last_advantage() < 0.0
+    assert rec.last_advantage() == rec.periods[-1]["advantage"]
+
+
+def test_last_advantage_is_zero_before_any_period_closes():
+    assert RouteRecorder(SQUARE, delivery_cost=1.0).last_advantage() == 0.0
+
+
+def test_logit_spread_is_averaged_over_hops():
+    rec = RouteRecorder(SQUARE, delivery_cost=1.0)
+    rec.record_hop(0, np.array([1, 2]), 1, -100.0, logit_spread=0.2)
+    rec.record_hop(1, np.array([2]), 2, -100.0, logit_spread=0.4)
+    rec.close_period()
+    assert rec.periods[0]["logit_spread"] == pytest.approx(0.3)
 
 
 def test_summary_and_aggregate_skip_empty_periods():

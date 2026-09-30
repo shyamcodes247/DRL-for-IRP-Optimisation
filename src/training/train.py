@@ -427,6 +427,7 @@ def main() -> None:
         print(
             f"        routing: visits/period={mean('visits_per_period'):5.1f}  "
             f"excess={mean('vrp_excess_ratio'):5.2f}x  nn_rank={mean('nn_rank'):5.3f}  "
+            f"logit_sd={mean('logit_spread'):6.3f}  "
             f"cost if 2-opt routed={mean('total_cost_best_route'):9.2f}"
         )
 

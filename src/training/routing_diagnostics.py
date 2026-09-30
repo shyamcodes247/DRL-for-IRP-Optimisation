@@ -132,8 +132,16 @@ class RouteRecorder:
         self._sequence: List[int] = []
         self._travelled = 0.0
         self._ranks: List[float] = []
+        self._spreads: List[float] = []
 
-    def record_hop(self, position: int, eligible: npt.NDArray, action: int, r_vrp: float) -> None:
+    def record_hop(
+        self,
+        position: int,
+        eligible: npt.NDArray,
+        action: int,
+        r_vrp: float,
+        logit_spread: Optional[float] = None,
+    ) -> None:
         """
         Records one routing action, before the environment state advances.
 
@@ -143,8 +151,14 @@ class RouteRecorder:
             action: The node index chosen.
             r_vrp: Routing reward returned for the hop; converted back to raw
                 distance so the total matches what the tour actually cost.
+            logit_spread: Standard deviation of the selectable nodes' logits
+                at this hop, from `RoutingActor.act`. Trending to zero means
+                the policy is flattening towards uniform — visible well
+                before it shows up in tour costs.
         """
         self._travelled += -float(r_vrp) / self.delivery_cost
+        if logit_spread is not None and not np.isnan(logit_spread):
+            self._spreads.append(float(logit_spread))
         if action != 0:
             self._sequence.append(int(action))
         candidates = [int(n) for n in np.asarray(eligible).ravel() if int(n) != 0]
@@ -168,6 +182,7 @@ class RouteRecorder:
             "reference": ref_length,
             "ratio": self._travelled / ref_length if ref_length > 0 else float("nan"),
             "nn_rank": float(np.mean(self._ranks)) if self._ranks else float("nan"),
+            "logit_spread": float(np.mean(self._spreads)) if self._spreads else float("nan"),
             "advantage": self_critical_advantage(self._travelled, ref_length, len(served)),
             "sequence": list(self._sequence),
         })
@@ -195,6 +210,7 @@ class RouteRecorder:
             "tour_ref_len": mean("reference"),
             "tour_ratio": mean("ratio"),
             "nn_rank": mean("nn_rank"),
+            "logit_spread": mean("logit_spread"),
             "routing_advantage": mean("advantage"),
             "total_distance": float(sum(p["travelled"] for p in self.periods)),
             "total_reference": float(sum(p["reference"] for p in self.periods)),

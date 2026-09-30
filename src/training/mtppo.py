@@ -274,7 +274,9 @@ class MTPPO:
                         num_coord_cols=2 * self.loc_dim,
                     ).to(self.device)
                     mask = torch.from_numpy(routing_obs["visited_mask"]).to(self.device)
-                    route_action, route_logp = self.routing_actor.act(route_node_feats, mask)
+                    route_action, route_logp, logit_spread = self.routing_actor.act(
+                        route_node_feats, mask
+                    )
 
                     hop_position = int(routing_obs["vehicle_position"])
                     hop_eligible = np.flatnonzero(routing_obs["visited_mask"] == 0)
@@ -283,7 +285,9 @@ class MTPPO:
                         route_action
                     )
                     total_r_vrp += r_vrp
-                    recorder.record_hop(hop_position, hop_eligible, route_action, r_vrp)
+                    recorder.record_hop(
+                        hop_position, hop_eligible, route_action, r_vrp, logit_spread
+                    )
 
                     buffer.add_routing_step(
                         routing_obs=route_node_feats,
@@ -403,12 +407,16 @@ class MTPPO:
 
                     hop_position = int(routing_obs["vehicle_position"])
                     hop_eligible = np.flatnonzero(routing_obs["visited_mask"] == 0)
+                    selectable = logits[torch.isfinite(logits)]
+                    hop_spread = float(selectable.std()) if selectable.numel() > 1 else float("nan")
 
                     routing_obs, r_vrp, next_critic_obs, terminated, _, _ = env.routing_action_step(
                         route_action
                     )
                     total_distance += -r_vrp / max(env.delivery_cost, 1e-12)
-                    recorder.record_hop(hop_position, hop_eligible, route_action, r_vrp)
+                    recorder.record_hop(
+                        hop_position, hop_eligible, route_action, r_vrp, hop_spread
+                    )
 
                     if next_critic_obs is not None:
                         critic_obs = next_critic_obs
@@ -456,6 +464,7 @@ class MTPPO:
             "vrp_distance_2opt": reference_distance,
             "vrp_excess_ratio": routing.get("tour_ratio", float("nan")),
             "nn_rank": routing.get("nn_rank", float("nan")),
+            "logit_spread": routing.get("logit_spread", float("nan")),
             "total_cost_best_route": total_inv_cost + best_routing_cost,
         }
 

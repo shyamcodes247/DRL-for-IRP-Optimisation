@@ -57,13 +57,25 @@ class RoutingActor(torch.nn.Module):
             action: Python int — index of the sampled next node.
             log_prob: Scalar tensor — log-probability of `action` under the
                 masked distribution.
+            logit_spread: Python float — standard deviation of the selectable
+                nodes' logits. The policy can only prefer one node over
+                another by the gap between their scores, so a spread
+                collapsing towards zero means the distribution is flattening
+                to uniform and node choice is becoming arbitrary, whatever
+                the tour costs happen to look like. Returned here rather than
+                recomputed by the caller, which would cost a second forward
+                pass per hop. NaN when fewer than two nodes are selectable
+                (no choice to make).
         """
         logits = self.forward(node_features=node_features)
         logits = logits.masked_fill(mask == 1, float("-inf"))
         dist = torch.distributions.Categorical(logits=logits)
         action = dist.sample()
 
-        return action.item(), dist.log_prob(action)
+        selectable = logits[torch.isfinite(logits)].detach()
+        logit_spread = float(selectable.std()) if selectable.numel() > 1 else float("nan")
+
+        return action.item(), dist.log_prob(action), logit_spread
 
     def evaluate(self, node_features, mask, action):
         """
