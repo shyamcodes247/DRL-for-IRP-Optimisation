@@ -10,12 +10,6 @@ class InventoryActor(torch.nn.Module):
         history separately, concatenates the two per-retailer, and decodes
         a Normal distribution's (mu, sigma) over the replenishment quantity
         for every retailer in parallel.
-
-        NOTE: `__init__` never calls `super().__init__()`, so `nn.Module`'s
-        internal state (`_parameters`, `_modules`, etc.) is never set up —
-        the `self.gin = ...` assignment on the next line raises
-        `AttributeError` immediately, since `nn.Module.__setattr__` relies
-        on that state existing.
     """
     def __init__(
         self,
