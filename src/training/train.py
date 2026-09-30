@@ -356,7 +356,8 @@ def main() -> None:
     node_feature_dims = {
         "critic": args.loc_dim + 6,
         "inventory": args.loc_dim + 3,
-        "routing": args.loc_dim + 1,
+        # location + displacement-from-current-node + replenishment + is-current
+        "routing": 2 * args.loc_dim + 2,
     }
     history_dim = 1 + 2 * args.lookback_window
     embed_dim = args.loc_dim + 2 * args.lookback_window

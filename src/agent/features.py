@@ -99,19 +99,46 @@ def build_routing_features(obs: Dict[str, npt.NDArray]) -> torch.Tensor:
     Flattens a routing-actor observation dict (see
     `IRPEnv.routing_observation_space`) into a per-node feature tensor.
 
+    Includes each node's displacement from the vehicle's *current* node, so
+    the policy can tell a nearby stop from a distant one. Lu et al. (2025)
+    declare the vehicle's route/position in the routing state (Eq. 27) but
+    their Eq. (30) initialises the GIN with location and replenishment
+    quantity only, and Eq. (32)'s decoder takes just the pooled encoder
+    output and the mask — so a literal implementation cannot condition on
+    where the vehicle is, and can only ever emit a fixed priority order over
+    nodes. Measured on a trained checkpoint of that literal version: the
+    logits were bit-identical whether the vehicle sat on a node or 309
+    distance units away, the same visit order was emitted every period, and
+    the resulting tours were longer than ~60-78% of random orderings of the
+    same node set (2.1x longer than 2-opt at n=10, 3.3x at n=30).
+
+    NOTE: the paper's state also carries the vehicle's current load, which is
+    deliberately not included here: `IRPEnv` caps a period's total deliveries
+    at one vehicle load and has no mid-tour reload, so remaining load is a
+    monotone function of what has already been visited and can never make a
+    node infeasible. Add it if that constraint is ever relaxed.
+
     Args:
         obs: Routing observation dict. `location` is (num_retailers+1,
             loc_dim) (depot + retailers); `replenishment_amount` is
             (num_retailers,) and is padded with a leading `0.0` for the
-            depot row so it aligns with `location`.
+            depot row so it aligns with `location`; `vehicle_position` is
+            the index of the node the vehicle currently sits on.
 
     Returns:
-        Tensor of shape (num_retailers+1, num_features): per-node features
-        (location, replenishment amount to deliver).
+        Tensor of shape (num_retailers+1, 2*loc_dim + 2): per-node features
+        (location, displacement from the vehicle's current node,
+        replenishment amount to deliver, whether this is the current node).
+        The leading 2*loc_dim columns are both coordinate-scaled — see
+        `MTPPO._normalize_location`'s `num_coord_cols`.
     """
     loc = obs["location"]
+    position = int(obs["vehicle_position"])
+    displacement = loc - loc[position]
     replenishment = np.concatenate([[0.0], obs["replenishment_amount"]])
-    features = np.hstack([loc, replenishment[:, None]])
+    is_current = np.zeros((loc.shape[0], 1))
+    is_current[position] = 1.0
+    features = np.hstack([loc, displacement, replenishment[:, None], is_current])
     return torch.from_numpy(features).float()
 
 def build_inventory_history(obs: Dict[str, npt.NDArray]) -> torch.Tensor:

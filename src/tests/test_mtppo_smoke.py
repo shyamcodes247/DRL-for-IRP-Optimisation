@@ -17,7 +17,7 @@ def _build_mtppo() -> MTPPO:
     node_feature_dims = {
         "critic": LOC_DIM + 6,
         "inventory": LOC_DIM + 3,
-        "routing": LOC_DIM + 1,
+        "routing": 2 * LOC_DIM + 2,
     }
     history_dim = 1 + 2 * LOOKBACK_WINDOW
     embed_dim = LOC_DIM + 2 * LOOKBACK_WINDOW

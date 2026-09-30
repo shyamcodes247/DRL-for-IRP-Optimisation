@@ -41,7 +41,7 @@ inv_actor = InventoryActor(
     embed_dim=EMBED_DIM,
 )
 routing_actor = RoutingActor(
-    node_feature_dim=LOC_DIM + 1,
+    node_feature_dim=2 * LOC_DIM + 2,
     gin_dims=GIN_DIMS,
     mlp_dims=MLP_DIMS,
 )
