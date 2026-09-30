@@ -29,11 +29,28 @@ class RolloutBuffer:
         scale — matching Eq. (35)/Eq. (36) literally: neither is written
         with a per-task subscript (`Â^t`, not `Â^t_k`), unlike the
         probability ratio `δ^k_t`, which is task-specific. One shared
-        advantage is used for both actors' surrogate objectives, so the
-        inventory actor's gradient reflects the routing-cost consequences of
-        its replenishment decisions too (e.g. requesting a delivery that
-        forces a long detour), not just its own holding/stockout cost in
-        isolation.
+        advantage is used for the inventory actor's surrogate objective and
+        the critic's regression target, so the inventory actor's gradient
+        reflects the routing-cost consequences of its replenishment decisions
+        too (e.g. requesting a delivery that forces a long detour), not just
+        its own holding/stockout cost in isolation.
+
+        NOTE on the routing actor's separate baseline: it is scored against
+        `routing_advantages` instead, a self-critical signal supplied per
+        timestep at collection time (Kool et al., 2019; POMO). The shared
+        advantage was verified not to teach sequencing — tours came out
+        longer than 60-78% of random orderings of the same stops. The reason
+        is that the routing actor does not choose *which* retailers to serve:
+        the mask forces it to visit every node the inventory decision left
+        needing delivery, so ordering is its entire control authority. A
+        shared advantage credits and blames it for holding cost, stockouts
+        and which retailers happened to need visiting — none of which it can
+        affect — and that is noise, not weak signal. Scoring each tour
+        against a reference ordering of the *same* stops isolates the one
+        thing it does control.
+
+        This is a documented departure from Lu et al. (2025), whose Eq. (35)
+        writes a single `Â^t` with no per-task subscript.
 
         GINEncoder (`gin.py`) has no batched-graph support — it consumes one
         graph's (num_nodes, feature_dim) tensor at a time — so `get_batches`
@@ -60,6 +77,12 @@ class RolloutBuffer:
         self.returns: torch.Tensor = torch.empty(0)
         self.advantages: torch.Tensor = torch.empty(0)
 
+        # Per-timestep routing advantage, supplied at collection time by the
+        # caller (see `add_timestep`'s `routing_advantage`). Kept separate
+        # from `advantages` because the routing actor is scored against a
+        # different baseline — see the class NOTE.
+        self.routing_advantages: List[float] = []
+
     def add_timestep(
         self,
         critic_obs: Tuple[torch.Tensor, torch.Tensor],
@@ -70,6 +93,7 @@ class RolloutBuffer:
         r_inv: float,
         value: torch.Tensor,
         done: bool,
+        routing_advantage: float = 0.0,
     ) -> None:
         """
         Records one environment timestep's inventory decision and the
@@ -93,6 +117,11 @@ class RolloutBuffer:
                 before storing for the same reason as `log_prob`.
             done: Whether this timestep's episode terminated before starting
                 the next one (see `IRPEnv.routing_action_step`'s `terminated`).
+            routing_advantage: Advantage every routing hop in this timestep's
+                tour is scored against (see the class NOTE). Defaults to 0,
+                which switches the routing surrogate off rather than falling
+                back to the shared advantage, so a caller that forgets it
+                fails loudly instead of silently training on the wrong signal.
         """
         self.critic_obs.append(critic_obs)
         self.inventory_obs.append(inventory_obs)
@@ -102,6 +131,7 @@ class RolloutBuffer:
         self.r_inv.append(r_inv)
         self.values.append(value.detach())
         self.done.append(done)
+        self.routing_advantages.append(float(routing_advantage))
 
     def add_routing_step(
         self,
@@ -206,9 +236,10 @@ class RolloutBuffer:
                         ...
                     ],
                 }
-            `advantage` is the same shared, per-timestep value in both the
-            "inventory" entry and every "routing" hop for that timestep (see
-            the class NOTE) — not two different values.
+            The "inventory" entry's `advantage` is the shared, combined one;
+            every "routing" hop for that timestep instead carries the
+            routing-specific advantage passed to `add_timestep` (see the
+            class NOTE on why the two actors are scored differently).
         """
         num_timesteps = len(self.r_inv)
         routing_by_timestep: List[List[Dict[str, Any]]] = [[] for _ in range(num_timesteps)]
@@ -218,7 +249,9 @@ class RolloutBuffer:
                 "mask": self.routing_masks[i],
                 "action": self.routing_actions[i],
                 "old_log_prob": self.routing_logprobs[i],
-                "advantage": self.advantages[t],
+                "advantage": torch.as_tensor(
+                    self.routing_advantages[t], dtype=torch.float32
+                ),
             })
 
         order = np.random.permutation(num_timesteps)
@@ -260,6 +293,7 @@ class RolloutBuffer:
 
         self.returns = torch.empty(0)
         self.advantages = torch.empty(0)
+        self.routing_advantages = []
 
     def _discounted_returns_and_advantages(
         self, rewards: List[float], gamma: float

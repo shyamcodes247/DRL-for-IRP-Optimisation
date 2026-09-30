@@ -297,6 +297,9 @@ class MTPPO:
                     if next_critic_obs is not None:
                         critic_obs = next_critic_obs
                         break
+                # Closed here, before the timestep record is added, because
+                # the tour's self-critical score is what every routing hop in
+                # it gets trained against.
                 recorder.close_period()
 
                 buffer.add_timestep(
@@ -308,6 +311,7 @@ class MTPPO:
                     r_inv=r_inv,
                     value=value,
                     done=terminated,
+                    routing_advantage=recorder.last_advantage(),
                 )
 
         return {

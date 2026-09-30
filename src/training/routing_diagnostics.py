@@ -63,6 +63,28 @@ def two_opt_tour(dist: npt.NDArray, nodes: Sequence[int], max_passes: int = 40) 
     return order
 
 
+def self_critical_advantage(travelled: float, reference: float, num_stops: int) -> float:
+    """
+    Scores one tour against a reference ordering of the same stops:
+    `(reference - travelled) / reference`. Positive means the policy beat the
+    reference, negative means it did worse, and the scale is the fraction of
+    the reference tour saved — comparable across instances of very different
+    size, unlike a raw distance difference.
+
+    This is the self-critical baseline of Kool et al. (2019) / POMO, with a
+    fixed heuristic standing in for their greedy-rollout baseline. Unlike the
+    shared advantage it is deliberately *not* re-centred across the batch:
+    the sign is the signal. Re-centring a batch in which every tour lost to
+    the reference would relabel the least-bad tours as good.
+
+    Returns 0 (no signal) when there was no ordering decision to make: fewer
+    than two stops, or a degenerate reference.
+    """
+    if num_stops < 2 or reference <= 0:
+        return 0.0
+    return (reference - travelled) / reference
+
+
 class RouteRecorder:
     """
         Accumulates routing decisions for one episode so a tour can be
@@ -146,9 +168,14 @@ class RouteRecorder:
             "reference": ref_length,
             "ratio": self._travelled / ref_length if ref_length > 0 else float("nan"),
             "nn_rank": float(np.mean(self._ranks)) if self._ranks else float("nan"),
+            "advantage": self_critical_advantage(self._travelled, ref_length, len(served)),
             "sequence": list(self._sequence),
         })
         self._reset_period()
+
+    def last_advantage(self) -> float:
+        """The routing advantage for the period just closed (see `self_critical_advantage`)."""
+        return self.periods[-1]["advantage"] if self.periods else 0.0
 
     def summary(self) -> Dict[str, float]:
         """Episode-level means, safe to log directly. Empty tours are skipped."""
@@ -168,6 +195,7 @@ class RouteRecorder:
             "tour_ref_len": mean("reference"),
             "tour_ratio": mean("ratio"),
             "nn_rank": mean("nn_rank"),
+            "routing_advantage": mean("advantage"),
             "total_distance": float(sum(p["travelled"] for p in self.periods)),
             "total_reference": float(sum(p["reference"] for p in self.periods)),
         }
