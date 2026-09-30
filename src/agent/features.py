@@ -1,10 +1,40 @@
-from typing import Dict
+from typing import Dict, Optional
 
 import torch
 import numpy as np
 import numpy.typing as npt
 
-def build_critic_features(obs: Dict[str, npt.NDArray]) -> torch.Tensor:
+
+def _scaled(values: npt.NDArray, scale: Optional[npt.NDArray]) -> npt.NDArray:
+    """
+    Divides per-retailer quantity columns by a per-retailer scale, leaving
+    them untouched when no scale is given.
+
+    Quantity features (inventory, demand, replenishment and their histories)
+    arrive on the instance's raw units — hundreds of units for these
+    benchmarks — while location is rescaled to roughly [0, 1] by
+    `MTPPO._normalize_location`. Feeding both into the same GIN lets the
+    unscaled columns dominate every embedding and compounds across layers;
+    it is the same failure mode that forced neighbour aggregation from sum
+    to mean. Dividing each retailer's quantities by its own maximum
+    inventory level `U_i` puts them on a common [0, 1]-ish footing that
+    means the same thing on a 5-retailer instance and a 50-retailer one.
+
+    Args:
+        values: (num_retailers, num_columns) block of quantities.
+        scale: (num_retailers,) positive per-retailer divisor, or None.
+    """
+    if scale is None:
+        return values
+    divisor = np.asarray(scale, dtype=float).reshape(-1, 1)
+    return values / np.maximum(divisor, 1e-8)
+
+
+def build_critic_features(
+    obs: Dict[str, npt.NDArray],
+    retailer_scale: Optional[npt.NDArray] = None,
+    depot_scale: Optional[float] = None,
+) -> torch.Tensor:
     """
     Flattens a critic observation dict (see `IRPEnv.critic_observation_space`)
     into a single per-node feature tensor for the critic's GIN encoder.
@@ -40,12 +70,21 @@ def build_critic_features(obs: Dict[str, npt.NDArray]) -> torch.Tensor:
         return np.vstack([depot_col, np.zeros((num_retailers, depot_col.shape[1]))])
 
     loc = obs["location"]
-    curr_inv = pad_depot_row(obs["current_inventory"][:, None])
-    past_replenishment = pad_depot_row(obs["replenishment_history"][:, -1:])
+    curr_inv = pad_depot_row(_scaled(obs["current_inventory"][:, None], retailer_scale))
+    past_replenishment = pad_depot_row(
+        _scaled(obs["replenishment_history"][:, -1:], retailer_scale)
+    )
+    # Holding cost is a price, not a quantity: it is already ~0.01-0.5 across
+    # these instance sets, so it is left alone.
     holding_cost = pad_depot_row(obs["holding_cost"][:, None])
-    curr_demand = pad_depot_row(obs["current_demand"][:, None])
-    historical_demands = pad_depot_row(obs["historical_demands"][:, -1:])
-    depot_inventory = pad_retailer_rows(obs["depot_inventory"][:, None])
+    curr_demand = pad_depot_row(_scaled(obs["current_demand"][:, None], retailer_scale))
+    historical_demands = pad_depot_row(
+        _scaled(obs["historical_demands"][:, -1:], retailer_scale)
+    )
+    depot_quantity = obs["depot_inventory"][:, None]
+    if depot_scale is not None:
+        depot_quantity = depot_quantity / max(float(depot_scale), 1e-8)
+    depot_inventory = pad_retailer_rows(depot_quantity)
     features = np.hstack([
         loc, curr_inv, past_replenishment, holding_cost, curr_demand, historical_demands,
         depot_inventory,
@@ -53,7 +92,9 @@ def build_critic_features(obs: Dict[str, npt.NDArray]) -> torch.Tensor:
     return torch.from_numpy(features).float()
 
 
-def build_global_features(obs: Dict[str, npt.NDArray]) -> torch.Tensor:
+def build_global_features(
+    obs: Dict[str, npt.NDArray], depot_scale: Optional[float] = None
+) -> torch.Tensor:
     """
     Flattens the critic observation's global, non-per-node scalars into a
     single feature vector — consumed by the critic after GIN pooling, rather
@@ -68,11 +109,15 @@ def build_global_features(obs: Dict[str, npt.NDArray]) -> torch.Tensor:
         current step).
     """
     production_rate = obs["production_rate"]
+    if depot_scale is not None:
+        production_rate = production_rate / max(float(depot_scale), 1e-8)
     normalised_current_step = obs["normalised_current_step"]
     features = np.concatenate([production_rate, normalised_current_step])
     return torch.from_numpy(features).float()
 
-def build_inventory_features(obs: Dict[str, npt.NDArray]) -> torch.Tensor:
+def build_inventory_features(
+    obs: Dict[str, npt.NDArray], retailer_scale: Optional[npt.NDArray] = None
+) -> torch.Tensor:
     """
     Flattens an inventory-actor observation dict (see
     `IRPEnv.inventory_observation_space`) into a per-retailer feature tensor.
@@ -88,13 +133,15 @@ def build_inventory_features(obs: Dict[str, npt.NDArray]) -> torch.Tensor:
         demand).
     """
     loc = obs["location"]
-    curr_inv = obs["current_inventory"][:, None]
-    past_replenishment = obs["replenishment_history"][:, -1:]
-    curr_demand = obs["current_demand"][:, None]
+    curr_inv = _scaled(obs["current_inventory"][:, None], retailer_scale)
+    past_replenishment = _scaled(obs["replenishment_history"][:, -1:], retailer_scale)
+    curr_demand = _scaled(obs["current_demand"][:, None], retailer_scale)
     features = np.hstack([loc, curr_inv, past_replenishment, curr_demand])
     return torch.from_numpy(features).float()
 
-def build_routing_features(obs: Dict[str, npt.NDArray]) -> torch.Tensor:
+def build_routing_features(
+    obs: Dict[str, npt.NDArray], retailer_scale: Optional[npt.NDArray] = None
+) -> torch.Tensor:
     """
     Flattens a routing-actor observation dict (see
     `IRPEnv.routing_observation_space`) into a per-node feature tensor.
@@ -135,15 +182,27 @@ def build_routing_features(obs: Dict[str, npt.NDArray]) -> torch.Tensor:
     loc = obs["location"]
     position = int(obs["vehicle_position"])
     displacement = loc - loc[position]
-    replenishment = np.concatenate([[0.0], obs["replenishment_amount"]])
+    scaled_replenishment = _scaled(obs["replenishment_amount"][:, None], retailer_scale)
+    replenishment = np.concatenate([[[0.0]], scaled_replenishment])
     is_current = np.zeros((loc.shape[0], 1))
     is_current[position] = 1.0
-    features = np.hstack([loc, displacement, replenishment[:, None], is_current])
+    features = np.hstack([loc, displacement, replenishment, is_current])
     return torch.from_numpy(features).float()
 
-def build_inventory_history(obs: Dict[str, npt.NDArray]) -> torch.Tensor:
-    inv = obs["current_inventory"][:, None]
-    rep = obs["replenishment_history"]
-    dem = obs["historical_demands"]
-    
+def build_inventory_history(
+    obs: Dict[str, npt.NDArray], retailer_scale: Optional[npt.NDArray] = None
+) -> torch.Tensor:
+    """
+    Flattens a retailer's current stock and its replenishment/demand windows
+    into the per-retailer history vector `InventoryActor.state_embed`
+    consumes. All three are quantities, so all three are scaled (see
+    `_scaled`).
+
+    Returns:
+        Tensor of shape (num_retailers, 1 + 2 * lookback_window).
+    """
+    inv = _scaled(obs["current_inventory"][:, None], retailer_scale)
+    rep = _scaled(obs["replenishment_history"], retailer_scale)
+    dem = _scaled(obs["historical_demands"], retailer_scale)
+
     return torch.from_numpy(np.hstack([inv, rep, dem])).float()

@@ -136,6 +136,8 @@ class MTPPO:
         # Caches each env's location-scale constant (see `_location_scale`) so it
         # is computed once per env rather than on every `collect_episode` call.
         self._loc_scale_cache: Dict[int, float] = {}
+        # Same, for the quantity scales (see `_quantity_scales`).
+        self._quantity_scale_cache: Dict[int, Any] = {}
 
     @staticmethod
     def _inventory_obs_from_critic(critic_obs: Dict[str, Any]) -> Dict[str, Any]:
@@ -176,6 +178,24 @@ class MTPPO:
             coords = np.concatenate([env.location.ravel(), env.depot_location.ravel()])
             self._loc_scale_cache[key] = float(np.max(np.abs(coords))) or 1.0
         return self._loc_scale_cache[key]
+
+    def _quantity_scales(self, env: Any):
+        """
+        Per-env divisors putting quantity features on a common footing (see
+        `features._scaled`): each retailer's maximum inventory level `U_i`
+        for per-retailer quantities, and the vehicle capacity for depot-level
+        ones. Both are fixed instance parameters, so they are cached per env.
+
+        Returns:
+            (retailer_scale, depot_scale) — an array of shape
+            (num_retailers,) and a scalar.
+        """
+        key = id(env)
+        if key not in self._quantity_scale_cache:
+            retailer_scale = np.maximum(np.asarray(env.retailer_max_capacity, dtype=float), 1e-8)
+            depot_scale = float(env.vehicle_capacity) or 1.0
+            self._quantity_scale_cache[key] = (retailer_scale, depot_scale)
+        return self._quantity_scale_cache[key]
 
     def _normalize_location(
         self, features: torch.Tensor, scale: float, num_coord_cols: Optional[int] = None
@@ -218,6 +238,7 @@ class MTPPO:
         total_r_inv, total_r_vrp = 0.0, 0.0
         terminated = False
         scale = self._location_scale(env)
+        retailer_scale, depot_scale = self._quantity_scales(env)
         recorder = RouteRecorder(
             np.vstack([env.depot_location, env.location]), env.delivery_cost
         )
@@ -225,16 +246,16 @@ class MTPPO:
         with torch.no_grad():
             while not terminated:
                 critic_node_feats = self._normalize_location(
-                    build_critic_features(critic_obs), scale
+                    build_critic_features(critic_obs, retailer_scale, depot_scale), scale
                 ).to(self.device)
-                critic_global_feats = build_global_features(critic_obs).to(self.device)
+                critic_global_feats = build_global_features(critic_obs, depot_scale).to(self.device)
                 value = self.critic(critic_node_feats, critic_global_feats)
 
                 inv_obs = self._inventory_obs_from_critic(critic_obs)
                 inv_node_feats = self._normalize_location(
-                    build_inventory_features(inv_obs), scale
+                    build_inventory_features(inv_obs, retailer_scale), scale
                 ).to(self.device)
-                inv_hist_feats = build_inventory_history(inv_obs).to(self.device)
+                inv_hist_feats = build_inventory_history(inv_obs, retailer_scale).to(self.device)
                 inv_action, inv_logp = self.inv_actor.act(inv_node_feats, inv_hist_feats)
 
                 routing_obs, r_inv, _ = env.inventory_action_step(inv_action.cpu().numpy())
@@ -248,7 +269,9 @@ class MTPPO:
 
                 while True:
                     route_node_feats = self._normalize_location(
-                        build_routing_features(routing_obs), scale, num_coord_cols=2 * self.loc_dim
+                        build_routing_features(routing_obs, retailer_scale),
+                        scale,
+                        num_coord_cols=2 * self.loc_dim,
                     ).to(self.device)
                     mask = torch.from_numpy(routing_obs["visited_mask"]).to(self.device)
                     route_action, route_logp = self.routing_actor.act(route_node_feats, mask)
@@ -335,6 +358,7 @@ class MTPPO:
         self.routing_actor.eval()
 
         scale = self._location_scale(env)
+        retailer_scale, _depot_scale = self._quantity_scales(env)
         _, critic_obs, _ = env.reset()
 
         total_inv_cost = 0.0
@@ -350,10 +374,10 @@ class MTPPO:
         with torch.no_grad():
             while not terminated:
                 inv_obs = self._inventory_obs_from_critic(critic_obs)
-                inv_node_feats = self._normalize_location(build_inventory_features(inv_obs), scale).to(
-                    self.device
-                )
-                inv_hist_feats = build_inventory_history(inv_obs).to(self.device)
+                inv_node_feats = self._normalize_location(
+                    build_inventory_features(inv_obs, retailer_scale), scale
+                ).to(self.device)
+                inv_hist_feats = build_inventory_history(inv_obs, retailer_scale).to(self.device)
                 mu, _ = self.inv_actor(inv_node_feats, inv_hist_feats)
 
                 total_demand += float(env.current_demand.sum())
@@ -365,7 +389,9 @@ class MTPPO:
                 guard = 0
                 while True:
                     route_node_feats = self._normalize_location(
-                        build_routing_features(routing_obs), scale, num_coord_cols=2 * self.loc_dim
+                        build_routing_features(routing_obs, retailer_scale),
+                        scale,
+                        num_coord_cols=2 * self.loc_dim,
                     ).to(self.device)
                     mask = torch.from_numpy(routing_obs["visited_mask"]).to(self.device)
                     logits = self.routing_actor(route_node_feats).masked_fill(mask == 1, float("-inf"))
