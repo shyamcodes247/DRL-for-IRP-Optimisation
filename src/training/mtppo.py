@@ -24,6 +24,7 @@ from agent.features import (
     build_routing_features,
 )
 from training.rollout_buffer import RolloutBuffer
+from training.routing_diagnostics import RouteRecorder
 
 
 class MTPPO:
@@ -217,6 +218,9 @@ class MTPPO:
         total_r_inv, total_r_vrp = 0.0, 0.0
         terminated = False
         scale = self._location_scale(env)
+        recorder = RouteRecorder(
+            np.vstack([env.depot_location, env.location]), env.delivery_cost
+        )
 
         with torch.no_grad():
             while not terminated:
@@ -249,10 +253,14 @@ class MTPPO:
                     mask = torch.from_numpy(routing_obs["visited_mask"]).to(self.device)
                     route_action, route_logp = self.routing_actor.act(route_node_feats, mask)
 
+                    hop_position = int(routing_obs["vehicle_position"])
+                    hop_eligible = np.flatnonzero(routing_obs["visited_mask"] == 0)
+
                     routing_obs, r_vrp, next_critic_obs, terminated, _, _ = env.routing_action_step(
                         route_action
                     )
                     total_r_vrp += r_vrp
+                    recorder.record_hop(hop_position, hop_eligible, route_action, r_vrp)
 
                     buffer.add_routing_step(
                         routing_obs=route_node_feats,
@@ -266,6 +274,7 @@ class MTPPO:
                     if next_critic_obs is not None:
                         critic_obs = next_critic_obs
                         break
+                recorder.close_period()
 
                 buffer.add_timestep(
                     critic_obs=(critic_node_feats, critic_global_feats),
@@ -282,9 +291,10 @@ class MTPPO:
             "r_inv": total_r_inv,
             "r_vrp": total_r_vrp,
             "total_reward": total_r_inv + total_r_vrp,
+            **recorder.summary(),
         }
 
-    def evaluate_episode(self, env: Any) -> Dict[str, float]:
+    def evaluate_episode(self, env: Any, route_log: Optional[List[Dict[str, Any]]] = None) -> Dict[str, float]:
         """
         Runs one deterministic (greedy) episode on `env`: the inventory
         actor's mean action instead of a sampled one, the routing actor's
@@ -296,13 +306,29 @@ class MTPPO:
         so a greedy rollout is fully deterministic — one call is enough,
         there's no benefit to averaging over repeated episodes.
 
+        Args:
+            env: The instance to evaluate on.
+            route_log: If given, one dict per period is appended describing
+                that period's tour in full — the visit sequence, the distance
+                travelled, the 2-opt distance over the same stops, and the
+                mean nearest-neighbour rank of its hops. Use it to inspect
+                individual routing decisions; the returned metrics only carry
+                episode-level means.
+
         Returns:
             Dict with `inv_cost` (total holding + lost-sales cost),
             `vrp_distance` (raw travel distance, undiscounted by
             `delivery_cost`), `routing_cost` (`vrp_distance * delivery_cost`,
             i.e. the paper's VRP.Dist*1k-style delivery cost term),
             `total_cost` (`inv_cost + routing_cost`), `fill_rate` (percent
-            of demand served immediately from stock), and `stockout_count`.
+            of demand served immediately from stock), and `stockout_count`,
+            plus routing diagnostics (see `RouteRecorder`):
+            `visits_per_period`, `vrp_distance_2opt` (the same stops in
+            2-opt order), `vrp_excess_ratio` (how many times longer the
+            travelled tours were), `nn_rank` (0 = always took the nearest
+            eligible stop, 0.5 = indistinguishable from random), and
+            `total_cost_best_route` (this episode's cost with its routing
+            replaced by the 2-opt tours, inventory decisions unchanged).
         """
         self.critic.eval()
         self.inv_actor.eval()
@@ -317,6 +343,9 @@ class MTPPO:
         total_demand = 0.0
         total_stockouts = 0
         terminated = False
+        recorder = RouteRecorder(
+            np.vstack([env.depot_location, env.location]), env.delivery_cost
+        )
 
         with torch.no_grad():
             while not terminated:
@@ -342,16 +371,21 @@ class MTPPO:
                     logits = self.routing_actor(route_node_feats).masked_fill(mask == 1, float("-inf"))
                     route_action = int(torch.argmax(logits).item())
 
+                    hop_position = int(routing_obs["vehicle_position"])
+                    hop_eligible = np.flatnonzero(routing_obs["visited_mask"] == 0)
+
                     routing_obs, r_vrp, next_critic_obs, terminated, _, _ = env.routing_action_step(
                         route_action
                     )
                     total_distance += -r_vrp / max(env.delivery_cost, 1e-12)
+                    recorder.record_hop(hop_position, hop_eligible, route_action, r_vrp)
 
                     if next_critic_obs is not None:
                         critic_obs = next_critic_obs
                         break
                     guard += 1
                     assert guard < 10_000, "greedy routing loop did not terminate"
+                recorder.close_period(reference="two_opt")
 
         self.critic.train()
         self.inv_actor.train()
@@ -359,6 +393,27 @@ class MTPPO:
 
         routing_cost = total_distance * env.delivery_cost
         fill_rate = 100.0 * (1.0 - total_lost_units / total_demand) if total_demand > 0 else 100.0
+        routing = recorder.summary()
+
+        # What this same episode would have cost if its stops had been visited
+        # in 2-opt order instead. The inventory decisions (and therefore which
+        # retailers get served, and all holding/stockout cost) are held fixed,
+        # so the gap between `total_cost` and `total_cost_best_route` is purely
+        # the price of the routing actor's sequencing.
+        reference_distance = routing.get("total_reference", float("nan"))
+        best_routing_cost = reference_distance * env.delivery_cost
+
+        if route_log is not None:
+            for period, record in enumerate(recorder.periods):
+                route_log.append({
+                    "period": period,
+                    "visits": int(record["visits"]),
+                    "distance": record["travelled"],
+                    "distance_2opt": record["reference"],
+                    "excess_ratio": record["ratio"],
+                    "nn_rank": record["nn_rank"],
+                    "sequence": " ".join(str(n) for n in record["sequence"]),
+                })
 
         return {
             "inv_cost": total_inv_cost,
@@ -367,6 +422,11 @@ class MTPPO:
             "total_cost": total_inv_cost + routing_cost,
             "fill_rate": fill_rate,
             "stockout_count": total_stockouts,
+            "visits_per_period": routing.get("visits_per_period", float("nan")),
+            "vrp_distance_2opt": reference_distance,
+            "vrp_excess_ratio": routing.get("tour_ratio", float("nan")),
+            "nn_rank": routing.get("nn_rank", float("nan")),
+            "total_cost_best_route": total_inv_cost + best_routing_cost,
         }
 
     def update(self, buffer: RolloutBuffer, ppo_epochs: int) -> Dict[str, float]:
@@ -405,7 +465,15 @@ class MTPPO:
 
         Returns:
             Dict of this epoch's losses/entropy, averaged over the
-            `ppo_epochs` passes, for logging.
+            `ppo_epochs` passes, plus critic diagnostics for the rollout they
+            were computed against. NOTE `value` is the critic's mean squared
+            error, not its output, and it lives on the *normalized*-return
+            scale (see `RolloutBuffer.compute_advantage`), not the raw cost
+            scale — so it is small by construction and is not comparable to
+            `r_inv`/`r_vrp`. `value_mean` is what the critic actually
+            predicts, `value_explained_var` how much of the return's variance
+            it captures, and `advantage_bias` the residual's mean before
+            re-centring.
         """
         buffer.compute_advantage(self.gamma)
 
@@ -419,9 +487,35 @@ class MTPPO:
         # than discriminating between them. Scaling to unit variance as well
         # keeps the step size comparable across epochs as the reward
         # distribution shifts.
+        # Critic diagnostics, captured before the advantage is re-centred (at
+        # this point `advantages` is exactly the regression residual,
+        # return - V). The logged `value` is an MSE, which says nothing about
+        # what the critic predicts or whether the prediction is any good, so
+        # report both directly:
+        #   value_mean          - what V(s) actually outputs, on the
+        #                         normalized-return scale it is trained on
+        #                         (not the raw cost scale)
+        #   value_explained_var - share of the return's variance V captures;
+        #                         1.0 perfect, 0 no better than predicting the
+        #                         mean, < 0 actively worse than that
+        #   advantage_bias      - mean of return - V before re-centring. A
+        #                         persistent non-zero value is a near-uniform
+        #                         "everything you did was worse than expected"
+        #                         signal; it is what the re-centring below
+        #                         removes, and worth watching for drift.
         advantages = buffer.advantages
+        returns = buffer.returns
         if advantages.numel() > 1:
+            return_var = torch.var(returns)
+            value_mean = (returns - advantages).mean().item()
+            advantage_bias = advantages.mean().item()
+            value_explained_var = (
+                (1.0 - torch.var(advantages) / return_var).item()
+                if return_var > 0 else float("nan")
+            )
             buffer.advantages = (advantages - advantages.mean()) / (advantages.std() + 1e-8)
+        else:
+            value_mean = advantage_bias = value_explained_var = float("nan")
 
         num_timesteps = len(buffer.r_inv)
         batch = next(buffer.get_batches(num_timesteps))
@@ -508,7 +602,15 @@ class MTPPO:
             totals["entropy"] += (entropy_inv.item() + entropy_vrp.item()) / 2
 
         buffer.clear()
-        return {k: v / ppo_epochs for k, v in totals.items()}
+        # The per-pass losses are averaged over `ppo_epochs`; the critic
+        # diagnostics describe the single rollout they were all computed
+        # against, so they are reported as-is.
+        return {
+            **{k: v / ppo_epochs for k, v in totals.items()},
+            "value_mean": value_mean,
+            "value_explained_var": value_explained_var,
+            "advantage_bias": advantage_bias,
+        }
 
     def train(
         self,
@@ -553,7 +655,8 @@ class MTPPO:
                     f"[epoch {epoch:5d}] "
                     f"mean r_inv={mean_r_inv:10.2f}  mean r_vrp={mean_r_vrp:10.2f}  "
                     f"policy_inv={losses['policy_inv']:.4f}  policy_vrp={losses['policy_vrp']:.4f}  "
-                    f"value={losses['value']:.4f}  entropy={losses['entropy']:.4f}"
+                    f"value_mse={losses['value']:.4f}  V_ev={losses['value_explained_var']:.3f}  "
+                    f"adv_bias={losses['advantage_bias']:+.3f}  entropy={losses['entropy']:.4f}"
                 )
 
             if on_epoch_end is not None:

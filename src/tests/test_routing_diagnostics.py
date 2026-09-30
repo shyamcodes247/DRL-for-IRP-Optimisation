@@ -1,0 +1,99 @@
+import numpy as np
+
+from training.routing_diagnostics import (
+    RouteRecorder,
+    aggregate,
+    distance_matrix,
+    nearest_neighbour_tour,
+    tour_length,
+    two_opt_tour,
+)
+
+# Depot at the origin with four retailers on a unit square, so the optimal
+# tour is the perimeter (length 4) and any crossing order is strictly worse.
+SQUARE = np.array([[0.0, 0.0], [0.0, 100.0], [100.0, 100.0], [100.0, 0.0], [0.0, 50.0]])
+
+
+def test_distance_matrix_matches_env_rounding():
+    coords = np.array([[0.0, 0.0], [3.0, 4.0]])
+    dist = distance_matrix(coords)
+    assert dist[0, 1] == 5.0
+    assert dist[0, 0] == 0.0
+    assert np.allclose(dist, dist.T)
+
+
+def test_tour_length_is_closed():
+    dist = distance_matrix(np.array([[0.0, 0.0], [0.0, 10.0], [10.0, 10.0]]))
+    # depot -> 1 -> 2 -> depot = 10 + 10 + round(sqrt(200))
+    assert tour_length(dist, [1, 2]) == 10 + 10 + round(np.sqrt(200))
+    assert tour_length(dist, []) == 0.0
+
+
+def test_two_opt_is_never_worse_than_nearest_neighbour():
+    dist = distance_matrix(SQUARE)
+    nodes = [1, 2, 3, 4]
+    nn = tour_length(dist, nearest_neighbour_tour(dist, nodes))
+    opt = tour_length(dist, two_opt_tour(dist, nodes))
+    assert opt <= nn
+
+
+def test_nn_rank_is_zero_when_always_choosing_the_nearest():
+    """A recorder fed the closest eligible node every hop should score 0."""
+    dist = distance_matrix(SQUARE)
+    rec = RouteRecorder(SQUARE, delivery_cost=1.0)
+    position, eligible = 0, [1, 2, 3, 4]
+    while eligible:
+        nearest = min(eligible, key=lambda n: dist[position, n])
+        rec.record_hop(position, np.array(eligible), nearest, -dist[position, nearest])
+        eligible.remove(nearest)
+        position = nearest
+    rec.close_period()
+    assert rec.periods[0]["nn_rank"] == 0.0
+    assert rec.periods[0]["visits"] == 4
+
+
+def test_nn_rank_is_one_when_always_choosing_the_farthest():
+    dist = distance_matrix(SQUARE)
+    rec = RouteRecorder(SQUARE, delivery_cost=1.0)
+    position, eligible = 0, [1, 2, 3, 4]
+    while eligible:
+        farthest = max(eligible, key=lambda n: dist[position, n])
+        rec.record_hop(position, np.array(eligible), farthest, -dist[position, farthest])
+        eligible.remove(farthest)
+        position = farthest
+    rec.close_period()
+    assert rec.periods[0]["nn_rank"] == 1.0
+
+
+def test_excess_ratio_detects_a_bad_ordering():
+    """A crossing order over the square must be longer than the 2-opt tour."""
+    dist = distance_matrix(SQUARE)
+    rec = RouteRecorder(SQUARE, delivery_cost=1.0)
+    position = 0
+    for node in [2, 4, 3, 1]:                      # deliberately crossing
+        rec.record_hop(position, np.array([1, 2, 3, 4]), node, -dist[position, node])
+        position = node
+    rec.record_hop(position, np.array([]), 0, -dist[position, 0])
+    rec.close_period(reference="two_opt")
+    assert rec.periods[0]["ratio"] > 1.0
+
+
+def test_delivery_cost_is_divided_out():
+    """Travelled distance is reported raw, not scaled by delivery_cost."""
+    rec = RouteRecorder(SQUARE, delivery_cost=5.0)
+    rec.record_hop(0, np.array([1]), 1, -500.0)
+    rec.close_period()
+    assert rec.periods[0]["travelled"] == 100.0
+
+
+def test_summary_and_aggregate_skip_empty_periods():
+    rec = RouteRecorder(SQUARE, delivery_cost=1.0)
+    rec.close_period()                              # a period nobody needed serving
+    rec.record_hop(0, np.array([1, 2]), 1, -100.0)
+    rec.close_period()
+    summary = rec.summary()
+    assert summary["visits_per_period"] == 1.0      # the empty period is excluded
+    assert summary["total_distance"] == 100.0
+
+    merged = aggregate([summary, {}, rec.summary()])
+    assert merged["mean_visits_per_period"] == 1.0

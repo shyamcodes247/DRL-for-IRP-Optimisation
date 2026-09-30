@@ -16,6 +16,7 @@ for _p in (_SRC_DIR, _AGENT_DIR):
 
 from environment.irp_env import IRPEnv
 from training.mtppo import MTPPO
+from training.routing_diagnostics import aggregate
 from utils.logger import ResultsLogger
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
@@ -382,7 +383,8 @@ def main() -> None:
     def run_evaluation(epoch):
         results = []
         for env, path in zip(eval_envs, eval_paths):
-            metrics = mtppo.evaluate_episode(env)
+            route_log = []
+            metrics = mtppo.evaluate_episode(env, route_log=route_log)
             # `Path(path).parent.name` disambiguates instances that share a filename
             # across data subfolders (e.g. abs5n30.dat exists under both
             # Instances_highcost_H3 and Instances_lowcost_H3, with different cost
@@ -392,6 +394,12 @@ def main() -> None:
             metrics = {"instance": instance_label, **metrics}
             logger.log_metrics("eval", epoch, metrics)
             results.append(metrics)
+            # One row per period per instance: the tour actually driven, what
+            # 2-opt would have driven over the same stops, and how near the
+            # chosen hops were. This is the per-decision detail; eval.csv only
+            # carries episode-level means.
+            for row in route_log:
+                logger.log_metrics("routes", epoch, {"instance": instance_label, **row})
 
         if len(results) <= 6:
             for metrics in results:
@@ -410,6 +418,17 @@ def main() -> None:
                 f"mean inv_cost={mean('inv_cost'):9.2f}  mean vrp_dist={mean('vrp_distance'):8.2f}  "
                 f"mean fill_rate={mean('fill_rate'):6.2f}%  mean total_cost={mean('total_cost'):9.2f}"
             )
+        # The routing read-out: how much of the distance is the sequencing
+        # itself. `excess` is travelled/2-opt over the same stops, `nn_rank`
+        # is 0 when every hop takes the nearest eligible stop and ~0.5 when
+        # the choice is indistinguishable from random.
+        n = len(results)
+        mean = lambda key: sum(m[key] for m in results) / n
+        print(
+            f"        routing: visits/period={mean('visits_per_period'):5.1f}  "
+            f"excess={mean('vrp_excess_ratio'):5.2f}x  nn_rank={mean('nn_rank'):5.3f}  "
+            f"cost if 2-opt routed={mean('total_cost_best_route'):9.2f}"
+        )
 
     last_eval_epoch = None
 
@@ -418,12 +437,21 @@ def main() -> None:
         mean_r_inv = sum(s["r_inv"] for s in episode_stats) / len(episode_stats)
         mean_r_vrp = sum(s["r_vrp"] for s in episode_stats) / len(episode_stats)
         mean_total = sum(s["total_reward"] for s in episode_stats) / len(episode_stats)
+        # Routing diagnostics averaged over this epoch's instances, so the
+        # training curve shows *why* routing reward moves, not just that it
+        # did (see `RouteRecorder`): whether tours got shorter because fewer
+        # stops were served or because they were sequenced better.
+        routing_stats = aggregate(
+            [{k: v for k, v in s.items() if k not in ("r_inv", "r_vrp", "total_reward")}
+             for s in episode_stats]
+        )
         logger.log_epoch(
             epoch,
             {
                 "mean_r_inv": mean_r_inv,
                 "mean_r_vrp": mean_r_vrp,
                 "mean_total_reward": mean_total,
+                **routing_stats,
                 **losses,
             },
         )
