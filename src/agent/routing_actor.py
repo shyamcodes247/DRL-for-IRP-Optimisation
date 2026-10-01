@@ -11,7 +11,7 @@ class RoutingActor(torch.nn.Module):
         context of the whole graph, and decodes a scalar logit per node — the
         unnormalised preference for visiting that node next.
     """
-    def __init__(self, node_feature_dim, gin_dims, mlp_dims):
+    def __init__(self, node_feature_dim, gin_dims, mlp_dims, logit_clip=10.0):
         """
         Args:
             node_feature_dim: Dimensionality of the raw per-node input
@@ -19,10 +19,21 @@ class RoutingActor(torch.nn.Module):
             gin_dims: List of GIN layer output dimensionalities, passed
                 straight through to `GINEncoder`.
             mlp_dims: Hidden-layer sizes for `decoder`.
+            logit_clip: Bound on the magnitude of a node's logit, applied as
+                `logit_clip * tanh(raw)` (Kool et al., 2019, who use 10).
+                Nothing else stops the logits growing: the policy gradient
+                keeps sharpening a distribution that is already right, and a
+                300-epoch run was measured going from a logit spread of 0.0
+                to 675 — a softmax so peaked it is a hard argmax with no
+                exploration left, after which tour quality stopped improving
+                and then drifted back (excess 1.06x at epoch 200, 1.11x by
+                300). tanh is monotone, so the ordering of preferences
+                survives; only the scale is bounded.
         """
         super().__init__()
         self.gin = GINEncoder(node_feature_dim=node_feature_dim, hidden_dims=gin_dims)
         self.decoder = build_mlp(2 * self.gin.output_dim, mlp_dims, 1)
+        self.logit_clip = logit_clip
 
     def forward(self, node_features):
         """
@@ -40,7 +51,7 @@ class RoutingActor(torch.nn.Module):
         combined = torch.cat([h, pooled.expand(h.shape[0], -1)], dim=1)
         logits = self.decoder(combined).squeeze(-1)
 
-        return logits
+        return self.logit_clip * torch.tanh(logits)
 
     def act(self, node_features, mask):
         """

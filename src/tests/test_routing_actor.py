@@ -45,3 +45,27 @@ def test_logit_spread_is_reported_for_a_real_choice():
     mask[0] = 1                                   # depot masked, 5 retailers open
     _, _, spread = actor.act(features, mask)
     assert math.isfinite(spread) and spread >= 0.0
+
+
+def test_logits_are_bounded_by_the_clip():
+    """
+    Extreme inputs must not produce the runaway logits measured before the
+    bound: a 300-epoch run reached a spread of 675, a softmax so peaked it is
+    a hard argmax with no exploration left.
+    """
+    actor = _actor(logit_clip=10.0)
+    logits = actor(torch.randn(9, NODE_DIM) * 1e4)
+    assert torch.isfinite(logits).all()
+    assert logits.abs().max() <= 10.0
+
+
+def test_the_clip_preserves_the_ordering_of_preferences():
+    """tanh is monotone, so bounding the scale must not reorder the nodes."""
+    actor = _actor(logit_clip=10.0)
+    features = torch.randn(7, NODE_DIM)
+    bounded = actor(features)
+    raw = actor.decoder(
+        torch.cat([actor.gin(features),
+                   actor.gin(features).mean(dim=0, keepdim=True).expand(7, -1)], dim=1)
+    ).squeeze(-1)
+    assert torch.equal(bounded.argsort(), raw.argsort())
