@@ -68,6 +68,15 @@ class RoutingActor(torch.nn.Module):
                 (no choice to make).
         """
         logits = self.forward(node_features=node_features)
+        # A fully-covering mask leaves every logit at -inf, and Categorical's
+        # normalisation then computes -inf - (-inf) = NaN, which propagates
+        # silently into the weights. Fail here instead, naming the cause.
+        if bool((mask == 1).all()):
+            raise ValueError(
+                "every node is masked, so there is no legal next stop: the tour "
+                "cannot close and the policy has nothing to choose from. Check "
+                "IRPEnv's load feasibility mask against the period's deliveries."
+            )
         logits = logits.masked_fill(mask == 1, float("-inf"))
         dist = torch.distributions.Categorical(logits=logits)
         action = dist.sample()

@@ -480,7 +480,20 @@ class IRPEnv(gym.Env):
 
         # Action mask handed to the policy: a node is blocked if it has already been
         # served, or if the remaining load cannot cover its full delivery.
-        infeasible = self.replenishment_amount > self.current_load_capacity[0]
+        #
+        # The comparison carries a tolerance because the two sides disagree in
+        # the last few bits: a period's deliveries are computed in float64 and
+        # capped so their total is exactly one vehicle load, while the load
+        # left is a float32 running subtraction of those same amounts. On the
+        # final stop the remainder can land a hair under the delivery it is
+        # meant to cover, which masks the one node still needing a visit. The
+        # tour then cannot close (`visited_mask[1:]` is not all 1) and nothing
+        # is selectable, so every logit is -inf and the policy's softmax is
+        # NaN. Only reachable once deliveries actually approach the cap, which
+        # is why it stayed hidden while the inventory actor was pinned at the
+        # shortfall.
+        tolerance = 1e-4 * max(self.vehicle_capacity, 1.0)
+        infeasible = self.replenishment_amount > self.current_load_capacity[0] + tolerance
         load_mask = np.zeros(self.num_retailers + 1, dtype=int)
         load_mask[1:] = infeasible
         effective_mask = np.maximum(self.visited_mask, load_mask)
