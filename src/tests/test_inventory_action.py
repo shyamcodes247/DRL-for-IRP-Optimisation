@@ -133,3 +133,44 @@ def test_beta_parameters_stay_unimodal():
     assert (alpha >= 1.0).all() and (beta >= 1.0).all()
 
 
+
+
+def test_tours_always_close_when_rationing_hits_the_capacity_cap():
+    """
+    Regression: when a period's deliveries are rationed to exactly the vehicle
+    capacity, the last stop's float64 delivery can exceed the float32 running
+    load by a few parts in 1e6. The serve test and the load mask must agree on
+    that node, or it stays selectable while never being servable and the tour
+    loops forever.
+
+    Reproduced on this instance at seed 0: delivery 216.5184381508 against a
+    remaining load of 216.5184326172, short by 5.5e-6, with the period's total
+    rationed to exactly C = 438.
+    """
+    from environment.irp_env import IRPEnv
+
+    rng = np.random.default_rng(0)
+    env = IRPEnv("../data/Instances_highcost_H6/abs3n5.dat", loc_dim=2, lookback_window=3,
+                 product_price=None, penalty_factor=None)
+    for trial in range(300):
+        env.reset()
+        terminated = False
+        while not terminated:
+            delivery = _delivery(rng.uniform(0, 1, env.num_retailers),
+                                 env.retailers_current_inventory,
+                                 env.current_demand, env.retailer_max_capacity)
+            routing_obs, _, _ = env.inventory_action_step(delivery)
+            hops = 0
+            while True:
+                eligible = np.flatnonzero(routing_obs["visited_mask"] == 0)
+                assert len(eligible) > 0, f"trial {trial}: every node masked"
+                routing_obs, _, critic_obs, terminated, _, _ = env.routing_action_step(
+                    int(rng.choice(eligible))
+                )
+                if critic_obs is not None:
+                    break
+                hops += 1
+                assert hops <= env.num_retailers + 1, (
+                    f"trial {trial}: tour did not close after {hops} hops "
+                    f"for {env.num_retailers} retailers"
+                )

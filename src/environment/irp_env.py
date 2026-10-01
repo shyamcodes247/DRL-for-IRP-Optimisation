@@ -462,15 +462,31 @@ class IRPEnv(gym.Env):
         node_2 = self.depot_location[0] if action == 0 else self.location[action - 1]
         distance_cost = self._get_distance(node_1=node_1, node_2=node_2)
 
-        if action != 0 and self.replenishment_amount[action - 1] <= self.current_load_capacity[0]:
-            # Feasible retailer visit: mark served and unload.
-            self.visited_mask[action] = 1
-            self.current_load_capacity -= np.array([self.replenishment_amount[action - 1]], dtype=np.float32)
-            self.vehicle_position = action
+        # One tolerance decides both whether a node can be served and whether
+        # it is masked out, and the two tests are exact complements. They have
+        # to be: if a node can be masked-in (selectable) but still refused by
+        # the serve test, the policy picks it, nothing changes, it stays
+        # selectable, and the tour loops forever without ever closing.
+        load_tolerance = 1e-4 * max(self.vehicle_capacity, 1.0)
+        servable = action != 0 and (
+            self.replenishment_amount[action - 1] <= self.current_load_capacity[0] + load_tolerance
+        )
 
-        # Forces agent to reconsider its action by returning zero reward and masks node out to ensure it is not chosen again
-        # The vehicle does not move in this case, so charging travel would be wrong.
-        if action != 0 and self.replenishment_amount[action - 1] > self.current_load_capacity[0]:
+        if servable:
+            # Feasible retailer visit: mark served and unload. Floored at zero
+            # because serving within the tolerance can take the remaining load
+            # a hair below it.
+            self.visited_mask[action] = 1
+            self.current_load_capacity = np.maximum(
+                self.current_load_capacity
+                - np.array([self.replenishment_amount[action - 1]], dtype=np.float32),
+                0.0,
+            )
+            self.vehicle_position = action
+        elif action != 0:
+            # Forces the agent to reconsider: the vehicle did not move, so
+            # charging travel would be wrong, and `load_mask` below blocks the
+            # node from being chosen again.
             distance_cost = 0
 
         # `visited_mask[0]` is never touched here (it stays whatever `reset`/the
@@ -492,8 +508,7 @@ class IRPEnv(gym.Env):
         # NaN. Only reachable once deliveries actually approach the cap, which
         # is why it stayed hidden while the inventory actor was pinned at the
         # shortfall.
-        tolerance = 1e-4 * max(self.vehicle_capacity, 1.0)
-        infeasible = self.replenishment_amount > self.current_load_capacity[0] + tolerance
+        infeasible = self.replenishment_amount > self.current_load_capacity[0] + load_tolerance
         load_mask = np.zeros(self.num_retailers + 1, dtype=int)
         load_mask[1:] = infeasible
         effective_mask = np.maximum(self.visited_mask, load_mask)
