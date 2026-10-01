@@ -1,5 +1,6 @@
 import os
 import sys
+import weakref
 from typing import Any, Dict, List, Optional
 
 import numpy as np
@@ -141,11 +142,15 @@ class MTPPO:
         self.inv_optimizer = torch.optim.Adam(self.inv_actor.parameters(), lr=lr)
         self.routing_optimizer = torch.optim.Adam(self.routing_actor.parameters(), lr=lr)
 
-        # Caches each env's location-scale constant (see `_location_scale`) so it
-        # is computed once per env rather than on every `collect_episode` call.
-        self._loc_scale_cache: Dict[int, float] = {}
-        # Same, for the quantity scales (see `_quantity_scales`).
-        self._quantity_scale_cache: Dict[int, Any] = {}
+        # Per-env constants, computed once rather than on every
+        # `collect_episode` call. Keyed weakly rather than by `id(env)`:
+        # CPython reuses an id once the object behind it is collected, so an
+        # env built after another was dropped could be handed the previous
+        # one's scales. With differently-sized instances that surfaces as a
+        # broadcast error, and between same-sized ones it would silently
+        # normalize by the wrong constants. A weak key drops with its env.
+        self._loc_scale_cache: "weakref.WeakKeyDictionary[Any, float]" = weakref.WeakKeyDictionary()
+        self._quantity_scale_cache: "weakref.WeakKeyDictionary[Any, Any]" = weakref.WeakKeyDictionary()
 
     @staticmethod
     def _inventory_obs_from_critic(critic_obs: Dict[str, Any]) -> Dict[str, Any]:
@@ -181,11 +186,10 @@ class MTPPO:
         Cached per env (keyed by `id`) since it depends only on the
         instance's fixed node coordinates.
         """
-        key = id(env)
-        if key not in self._loc_scale_cache:
+        if env not in self._loc_scale_cache:
             coords = np.concatenate([env.location.ravel(), env.depot_location.ravel()])
-            self._loc_scale_cache[key] = float(np.max(np.abs(coords))) or 1.0
-        return self._loc_scale_cache[key]
+            self._loc_scale_cache[env] = float(np.max(np.abs(coords))) or 1.0
+        return self._loc_scale_cache[env]
 
     @staticmethod
     def _delivery_from_fraction(
@@ -262,12 +266,11 @@ class MTPPO:
             (retailer_scale, depot_scale) — an array of shape
             (num_retailers,) and a scalar.
         """
-        key = id(env)
-        if key not in self._quantity_scale_cache:
+        if env not in self._quantity_scale_cache:
             retailer_scale = np.maximum(np.asarray(env.retailer_max_capacity, dtype=float), 1e-8)
             depot_scale = float(env.vehicle_capacity) or 1.0
-            self._quantity_scale_cache[key] = (retailer_scale, depot_scale)
-        return self._quantity_scale_cache[key]
+            self._quantity_scale_cache[env] = (retailer_scale, depot_scale)
+        return self._quantity_scale_cache[env]
 
     def _normalize_location(
         self, features: torch.Tensor, scale: float, num_coord_cols: Optional[int] = None
