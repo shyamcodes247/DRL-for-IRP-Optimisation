@@ -1,15 +1,44 @@
 from typing import List, Tuple
 import torch
+import torch.nn.functional as F
 from gin import GINEncoder
 from mlp import build_mlp
+
+# Keeps a sampled fraction off the exact endpoints, where a Beta with
+# alpha, beta > 1 has zero density and log_prob would diverge.
+_EDGE = 1e-6
+
 
 class InventoryActor(torch.nn.Module):
     """
         Per-retailer continuous replenishment policy. Encodes retailer node
         features with a GIN, embeds each retailer's demand/replenishment
-        history separately, concatenates the two per-retailer, and decodes
-        a Normal distribution's (mu, sigma) over the replenishment quantity
-        for every retailer in parallel.
+        history separately, concatenates the two per-retailer, and decodes a
+        Beta distribution over a *fraction* for every retailer in parallel.
+
+        The fraction indexes each retailer's feasible delivery range rather
+        than naming a quantity directly (see
+        `MTPPO._delivery_from_fraction`): 0 delivers exactly the shortfall
+        needed to avoid a stockout this period, 1 tops the retailer up to its
+        maximum level `U_i`. Every action is therefore feasible by
+        construction and already satisfies Archetti et al. (2007)'s
+        no-stockout constraint, so `IRPEnv`'s auto-top-up floor never has to
+        override the policy.
+
+        This replaces an unbounded Normal over raw quantities, under which
+        the decision was provably vestigial: the environment clipped any
+        request up to the shortfall for free, while any excess only added
+        holding cost, so "request nothing" was optimal and the trained policy
+        duly converged there — inventory cost was identical to the cent
+        across checkpoints and whole runs. Choosing where to sit between
+        just-in-time and a full top-up is the trade-off Archetti's order-up-to
+        policy exploits to buy fewer visits, and it is what the routing cost
+        mostly depends on.
+
+        Beta rather than a squashed Gaussian so the support is exactly [0, 1]
+        with no change-of-variables term: the policy is over the fraction,
+        and the map onto a quantity is a deterministic function of the state,
+        so PPO's ratios stay exact.
     """
     def __init__(
         self,
@@ -49,24 +78,23 @@ class InventoryActor(torch.nn.Module):
                 — per-retailer history features for `state_embed`.
 
         Returns:
-            mu: Tensor of shape (num_retailers,) — per-retailer mean
-                replenishment quantity.
-            sigma: Tensor of shape (num_retailers,) — per-retailer standard
-                deviation, obtained via `exp` so it stays positive.
+            alpha: Tensor of shape (num_retailers,) — first Beta shape
+                parameter per retailer.
+            beta: Tensor of shape (num_retailers,) — second Beta shape
+                parameter per retailer.
         """
         h = self.gin(node_features)
         e = self.state_embed(history_features)
         combined = torch.cat([h, e], dim=1)
         out = self.decoder(combined)
-        mu, rho = out[:, 0], out[:, 1]
-        # Unclamped, a single gradient step can push rho to an extreme value
-        # (exp() amplifies it in either direction), causing sigma to explode
-        # or collapse and NaN out within the first few PPO updates. Clamped
-        # to the standard continuous-PPO range, this bounds sigma to
-        # roughly [0.007, 7.4].
-        sigma = torch.exp(torch.clamp(rho, min=-5.0, max=2.0))
+        # softplus keeps both parameters positive; the +1 floor keeps the
+        # Beta unimodal, which rules out the U-shaped regime whose density
+        # piles up at 0 and 1 and whose samples would be almost purely
+        # bang-bang (Chou et al., 2017).
+        alpha = F.softplus(out[:, 0]) + 1.0
+        beta = F.softplus(out[:, 1]) + 1.0
 
-        return mu, sigma
+        return alpha, beta
 
     def act(
         self, node_features: torch.Tensor, history_features: torch.Tensor
@@ -79,17 +107,30 @@ class InventoryActor(torch.nn.Module):
             history_features: As in `forward`.
 
         Returns:
-            action: Tensor of shape (num_retailers,) — sampled replenishment
-                quantities.
+            action: Tensor of shape (num_retailers,) — sampled fractions in
+                [0, 1], one per retailer. Map to quantities with
+                `MTPPO._delivery_from_fraction`; this is the variable the
+                rollout buffer stores and `evaluate` re-scores, so the PPO
+                ratio is taken on it.
             log_prob: Scalar tensor — summed log-probability of `action`
-                under the per-retailer Normal distributions.
+                under the per-retailer Beta distributions.
         """
-        mu, sigma = self.forward(node_features=node_features, history_features=history_features)
-        dist = torch.distributions.Normal(mu, sigma)
-        action = dist.sample()
+        alpha, beta = self.forward(node_features=node_features, history_features=history_features)
+        dist = torch.distributions.Beta(alpha, beta)
+        action = dist.sample().clamp(_EDGE, 1.0 - _EDGE)
         log_prob = dist.log_prob(action).sum()
 
         return action, log_prob
+
+    def mean_action(self, node_features: torch.Tensor, history_features: torch.Tensor) -> torch.Tensor:
+        """
+        The distribution's mean fraction per retailer, for deterministic
+        (greedy) rollouts. Evaluation must use this rather than the raw
+        decoder output, so that training and evaluation apply the same
+        fraction-to-quantity map.
+        """
+        alpha, beta = self.forward(node_features=node_features, history_features=history_features)
+        return alpha / (alpha + beta)
 
     def evaluate(
         self, node_features: torch.Tensor, history_features: torch.Tensor, action: torch.Tensor
@@ -100,8 +141,8 @@ class InventoryActor(torch.nn.Module):
         Args:
             node_features: As in `forward`.
             history_features: As in `forward`.
-            action: Tensor of shape (num_retailers,) — the replenishment
-                action to evaluate (e.g. one sampled during rollout).
+            action: Tensor of shape (num_retailers,) — the fractions to
+                evaluate (as sampled by `act` during rollout).
 
         Returns:
             log_prob: Scalar tensor — summed log-probability of `action`
@@ -109,6 +150,7 @@ class InventoryActor(torch.nn.Module):
             entropy: Scalar tensor — summed entropy of the per-retailer
                 distributions, used as an exploration bonus.
         """
-        mu, sigma = self.forward(node_features=node_features, history_features=history_features)
-        dist = torch.distributions.Normal(mu, sigma)
+        alpha, beta = self.forward(node_features=node_features, history_features=history_features)
+        dist = torch.distributions.Beta(alpha, beta)
+        action = action.clamp(_EDGE, 1.0 - _EDGE)
         return dist.log_prob(action).sum(), dist.entropy().sum()

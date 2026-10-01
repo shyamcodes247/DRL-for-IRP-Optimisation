@@ -3,6 +3,7 @@ import sys
 from typing import Any, Dict, List, Optional
 
 import numpy as np
+import numpy.typing as npt
 import torch
 import torch.nn.functional as F
 
@@ -63,6 +64,7 @@ class MTPPO:
         entropy_coef: float = 0.001,
         max_grad_norm: float = 0.5,
         device: str = "cpu",
+        skip_dead_zone: float = 0.1,
     ) -> None:
         """
         Args:
@@ -90,8 +92,14 @@ class MTPPO:
             max_grad_norm: Global gradient-norm clip applied before each
                 optimizer step.
             device: torch device string the networks and batches are moved to.
+            skip_dead_zone: Inventory fraction below which nothing
+                discretionary is delivered, so a retailer that needs nothing
+                this period can be skipped entirely (see
+                `_delivery_from_fraction`). Larger values make skipping
+                easier for the policy to reach, at the cost of action range.
         """
         self.loc_dim = loc_dim
+        self.skip_dead_zone = skip_dead_zone
         self.gamma = gamma
         self.clip_eps = clip_eps
         self.value_coef = value_coef
@@ -179,6 +187,70 @@ class MTPPO:
             self._loc_scale_cache[key] = float(np.max(np.abs(coords))) or 1.0
         return self._loc_scale_cache[key]
 
+    @staticmethod
+    def _delivery_from_fraction(
+        fraction: npt.NDArray,
+        inventory: npt.NDArray,
+        demand: npt.NDArray,
+        max_capacity: npt.NDArray,
+        dead_zone: float = 0.1,
+    ) -> npt.NDArray:
+        """
+        Maps each retailer's policy fraction in [0, 1] onto a delivery
+        quantity spanning its feasible range, so the action the
+        `InventoryActor` chooses is the one the environment carries out.
+
+            <= dead_zone -> the shortfall alone: exactly enough to avoid a
+                 stockout this period, i.e. what `IRPEnv`'s auto-top-up floor
+                 would have forced anyway. Where a retailer's stock already
+                 covers the period the shortfall is zero, so this delivers
+                 *nothing* and the retailer is not visited at all.
+            1 -> a full top-up to the retailer's maximum level `U_i`
+
+        The dead zone exists because skipping a retailer is the action that
+        actually saves routing cost, and without it the policy cannot express
+        it: `IRPEnv` counts a visit whenever the delivery exceeds 1e-6, and a
+        Beta is continuous, so every retailer drew a positive fraction and
+        every retailer was visited every period. Measured over 8 epochs with
+        no dead zone: deliveries moved (55% of headroom) while visits/period
+        stayed pinned at exactly the retailer count.
+
+        Below the dead zone the discretionary amount is zero; above it, it
+        ramps from zero rather than jumping, so the map stays continuous and
+        the policy can approach "skip" gradually instead of having to land in
+        a narrow band.
+
+        The lower end reproduces Archetti et al. (2007)'s no-stockout
+        constraint by construction, so the environment's floor never
+        overrides the policy; the upper end is the order-up-to policy their
+        model applies. Everything in between is the trade-off the agent gets
+        to make: delivering above the shortfall costs a little holding cost
+        now (0.02-0.04 per unit-period here) in exchange for skipping visits
+        later, and a visit costs hundreds of distance units.
+
+        Computed from the same `inventory`/`demand` the environment will use
+        on this step, so the shortfall matches its `min_required` exactly.
+
+        Args:
+            fraction: (num_retailers,) values in [0, 1].
+            inventory: (num_retailers,) current stock.
+            demand: (num_retailers,) this period's demand.
+            max_capacity: (num_retailers,) each retailer's `U_i`.
+            dead_zone: Fraction below which nothing discretionary is
+                delivered, making "skip this retailer" reachable.
+
+        Returns:
+            (num_retailers,) delivery quantities. Never below the shortfall,
+            so the no-stockout constraint holds however small the fraction —
+            only a retailer that needs nothing this period can be skipped.
+            The environment may still scale these down together if the depot
+            is short or they exceed one vehicle load.
+        """
+        headroom = np.maximum(max_capacity - inventory, 0.0)
+        shortfall = np.clip(demand - inventory, 0.0, headroom)
+        discretionary = np.clip((fraction - dead_zone) / (1.0 - dead_zone), 0.0, 1.0)
+        return shortfall + discretionary * (headroom - shortfall)
+
     def _quantity_scales(self, env: Any):
         """
         Per-env divisors putting quantity features on a common footing (see
@@ -242,6 +314,13 @@ class MTPPO:
         recorder = RouteRecorder(
             np.vstack([env.depot_location, env.location]), env.delivery_cost
         )
+        # How much of each retailer's headroom actually gets delivered. Pinned
+        # at shortfall/headroom means the inventory actor is not in control —
+        # the state the policy sat in before it chose a fraction rather than a
+        # raw quantity.
+        fill_fractions: List[float] = []
+        requested_fractions: List[float] = []
+        skip_rates: List[float] = []
 
         with torch.no_grad():
             while not terminated:
@@ -256,10 +335,31 @@ class MTPPO:
                     build_inventory_features(inv_obs, retailer_scale), scale
                 ).to(self.device)
                 inv_hist_feats = build_inventory_history(inv_obs, retailer_scale).to(self.device)
+                # The action is a per-retailer fraction; the buffer stores it
+                # unchanged, so the PPO ratio is taken on the same variable
+                # the policy actually parameterises.
                 inv_action, inv_logp = self.inv_actor.act(inv_node_feats, inv_hist_feats)
+                delivery = self._delivery_from_fraction(
+                    inv_action.cpu().numpy(),
+                    env.retailers_current_inventory,
+                    env.current_demand,
+                    env.retailer_max_capacity,
+                    self.skip_dead_zone,
+                )
+                headroom = np.maximum(env.retailer_max_capacity - env.retailers_current_inventory, 0.0)
 
-                routing_obs, r_inv, _ = env.inventory_action_step(inv_action.cpu().numpy())
+                routing_obs, r_inv, _ = env.inventory_action_step(delivery)
                 total_r_inv += r_inv
+                fill_fractions.append(
+                    float(np.mean(env.replenishment_amount[headroom > 0] / headroom[headroom > 0]))
+                    if np.any(headroom > 0) else float("nan")
+                )
+                requested_fractions.append(float(inv_action.mean()))
+                # Share of retailers the policy chose to skip outright. Only
+                # possible where the retailer needs nothing this period, so
+                # this is the lever on visit count (and therefore on routing
+                # cost) that the dead zone exists to make reachable.
+                skip_rates.append(float(np.mean(env.replenishment_amount <= 1e-6)))
 
                 # This timestep's index among `add_timestep` calls so far — assigned
                 # before `add_timestep` runs, since every routing hop below must be
@@ -322,6 +422,10 @@ class MTPPO:
             "r_inv": total_r_inv,
             "r_vrp": total_r_vrp,
             "total_reward": total_r_inv + total_r_vrp,
+            "fill_fraction": float(np.nanmean(fill_fractions)) if fill_fractions else float("nan"),
+            "requested_fraction": float(np.mean(requested_fractions))
+            if requested_fractions else float("nan"),
+            "skip_rate": float(np.mean(skip_rates)) if skip_rates else float("nan"),
             **recorder.summary(),
         }
 
@@ -378,6 +482,7 @@ class MTPPO:
         recorder = RouteRecorder(
             np.vstack([env.depot_location, env.location]), env.delivery_cost
         )
+        eval_fill_fractions: List[float] = []
 
         with torch.no_grad():
             while not terminated:
@@ -386,10 +491,25 @@ class MTPPO:
                     build_inventory_features(inv_obs, retailer_scale), scale
                 ).to(self.device)
                 inv_hist_feats = build_inventory_history(inv_obs, retailer_scale).to(self.device)
-                mu, _ = self.inv_actor(inv_node_feats, inv_hist_feats)
+                # The Beta's mean fraction, mapped through the same transform
+                # training uses. Feeding the raw decoder output here instead
+                # would evaluate a different policy than the one trained.
+                mean_fraction = self.inv_actor.mean_action(inv_node_feats, inv_hist_feats)
+                delivery = self._delivery_from_fraction(
+                    mean_fraction.cpu().numpy(),
+                    env.retailers_current_inventory,
+                    env.current_demand,
+                    env.retailer_max_capacity,
+                    self.skip_dead_zone,
+                )
+                headroom = np.maximum(env.retailer_max_capacity - env.retailers_current_inventory, 0.0)
 
                 total_demand += float(env.current_demand.sum())
-                routing_obs, r_inv, info = env.inventory_action_step(mu.cpu().numpy())
+                routing_obs, r_inv, info = env.inventory_action_step(delivery)
+                if np.any(headroom > 0):
+                    eval_fill_fractions.append(
+                        float(np.mean(env.replenishment_amount[headroom > 0] / headroom[headroom > 0]))
+                    )
                 total_inv_cost += -r_inv
                 total_lost_units += info["lost_sales_units"]
                 total_stockouts += info["stockout_count"]
@@ -465,6 +585,8 @@ class MTPPO:
             "vrp_excess_ratio": routing.get("tour_ratio", float("nan")),
             "nn_rank": routing.get("nn_rank", float("nan")),
             "logit_spread": routing.get("logit_spread", float("nan")),
+            "fill_fraction": float(np.mean(eval_fill_fractions))
+            if eval_fill_fractions else float("nan"),
             "total_cost_best_route": total_inv_cost + best_routing_cost,
         }
 

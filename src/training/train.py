@@ -261,6 +261,16 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--value-coef", type=float, default=0.5)
     parser.add_argument("--entropy-coef", type=float, default=0.001)
     parser.add_argument("--max-grad-norm", type=float, default=0.5)
+    parser.add_argument(
+        "--skip-dead-zone",
+        type=float,
+        default=0.1,
+        help="Inventory fraction below which nothing discretionary is delivered, so a "
+        "retailer needing nothing this period can be skipped entirely (never one that "
+        "would stock out). Skipping is what cuts visit count, and therefore routing "
+        "cost. Larger values put more of the policy's probability mass within reach of "
+        "skipping at the cost of action range; watch skip_rate in metrics.csv.",
+    )
 
     parser.add_argument("--num-epochs", type=int, default=200)
     parser.add_argument(
@@ -377,6 +387,7 @@ def main() -> None:
         value_coef=args.value_coef,
         entropy_coef=args.entropy_coef,
         max_grad_norm=args.max_grad_norm,
+        skip_dead_zone=args.skip_dead_zone,
         device=args.device,
     )
 
@@ -427,7 +438,7 @@ def main() -> None:
         print(
             f"        routing: visits/period={mean('visits_per_period'):5.1f}  "
             f"excess={mean('vrp_excess_ratio'):5.2f}x  nn_rank={mean('nn_rank'):5.3f}  "
-            f"logit_sd={mean('logit_spread'):6.3f}  "
+            f"logit_sd={mean('logit_spread'):6.3f}  fill={mean('fill_fraction'):5.2f}  "
             f"cost if 2-opt routed={mean('total_cost_best_route'):9.2f}"
         )
 
