@@ -1,0 +1,46 @@
+# Branch-and-cut CPU times reported by Archetti, Bertazzi, Laporte & Speranza
+# (2007), "A Branch-and-Cut Algorithm for a Vendor-Managed Inventory-Routing
+# Problem", Transportation Science 41(3), Table I -- the VMIR-OU variant
+# (order-up-to level policy), which is the variant our instances come from.
+#
+# Hardware: Intel Pentium IV, 2.8 GHz, single core. Time limit 2 hours.
+# Each figure is the MEAN over the five replicates abs1..abs5 of that
+# (cost class, H, n) combination; our evaluation set holds only abs5, so a
+# per-row comparison pairs one instance against a five-instance average.
+#
+# cost_class: lowcost = holding cost h_i in [0.01, 0.05], h_0 = 0.03
+#             highcost = h_i in [0.1, 0.5], h_0 = 0.3
+# seconds: CPU seconds to termination (proven optimality, or the 2h cutoff).
+cost_class,H,n,seconds
+lowcost,3,5,0.0
+lowcost,3,10,0.0
+lowcost,3,15,1.0
+lowcost,3,20,7.4
+lowcost,3,25,27.8
+lowcost,3,30,79.6
+lowcost,3,35,208.6
+lowcost,3,40,686.4
+lowcost,3,45,1049.6
+lowcost,3,50,3572.4
+highcost,3,5,0.0
+highcost,3,10,0.0
+highcost,3,15,1.8
+highcost,3,20,7.6
+highcost,3,25,24.4
+highcost,3,30,101.6
+highcost,3,35,237.0
+highcost,3,40,561.6
+highcost,3,45,1189.6
+highcost,3,50,2842.8
+lowcost,6,5,0.0
+lowcost,6,10,5.0
+lowcost,6,15,29.2
+lowcost,6,20,558.0
+lowcost,6,25,1063.0
+lowcost,6,30,3216.0
+highcost,6,5,0.0
+highcost,6,10,6.0
+highcost,6,15,31.6
+highcost,6,20,530.2
+highcost,6,25,1018.2
+highcost,6,30,4099.8

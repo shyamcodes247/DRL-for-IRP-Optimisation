@@ -432,7 +432,12 @@ class MTPPO:
             **recorder.summary(),
         }
 
-    def evaluate_episode(self, env: Any, route_log: Optional[List[Dict[str, Any]]] = None) -> Dict[str, float]:
+    def evaluate_episode(
+        self,
+        env: Any,
+        route_log: Optional[List[Dict[str, Any]]] = None,
+        collect_diagnostics: bool = True,
+    ) -> Dict[str, float]:
         """
         Runs one deterministic (greedy) episode on `env`: the inventory
         actor's mean action instead of a sampled one, the routing actor's
@@ -446,6 +451,14 @@ class MTPPO:
 
         Args:
             env: The instance to evaluate on.
+            collect_diagnostics: When False, the `RouteRecorder` and its
+                2-opt reference tours are skipped entirely and every
+                diagnostic field in the result is NaN. The cost figures are
+                unaffected -- the policy and the environment do exactly the
+                same work either way. Use it when only the solution matters
+                and the diagnostics' cost would distort the measurement, as
+                when timing inference: 2-opt over 50 stops dominates the
+                forward passes it is meant to be measured against.
             route_log: If given, one dict per period is appended describing
                 that period's tour in full — the visit sequence, the distance
                 travelled, the 2-opt distance over the same stops, and the
@@ -468,6 +481,9 @@ class MTPPO:
             `total_cost_best_route` (this episode's cost with its routing
             replaced by the 2-opt tours, inventory decisions unchanged).
         """
+        if route_log is not None and not collect_diagnostics:
+            raise ValueError("route_log needs collect_diagnostics=True to be populated")
+
         self.critic.eval()
         self.inv_actor.eval()
         self.routing_actor.eval()
@@ -482,8 +498,9 @@ class MTPPO:
         total_demand = 0.0
         total_stockouts = 0
         terminated = False
-        recorder = RouteRecorder(
-            np.vstack([env.depot_location, env.location]), env.delivery_cost
+        recorder = (
+            RouteRecorder(np.vstack([env.depot_location, env.location]), env.delivery_cost)
+            if collect_diagnostics else None
         )
         eval_fill_fractions: List[float] = []
 
@@ -528,25 +545,30 @@ class MTPPO:
                     logits = self.routing_actor(route_node_feats).masked_fill(mask == 1, float("-inf"))
                     route_action = int(torch.argmax(logits).item())
 
-                    hop_position = int(routing_obs["vehicle_position"])
-                    hop_eligible = np.flatnonzero(routing_obs["visited_mask"] == 0)
-                    selectable = logits[torch.isfinite(logits)]
-                    hop_spread = float(selectable.std()) if selectable.numel() > 1 else float("nan")
+                    if recorder is not None:
+                        hop_position = int(routing_obs["vehicle_position"])
+                        hop_eligible = np.flatnonzero(routing_obs["visited_mask"] == 0)
+                        selectable = logits[torch.isfinite(logits)]
+                        hop_spread = (
+                            float(selectable.std()) if selectable.numel() > 1 else float("nan")
+                        )
 
                     routing_obs, r_vrp, next_critic_obs, terminated, _, _ = env.routing_action_step(
                         route_action
                     )
                     total_distance += -r_vrp / max(env.delivery_cost, 1e-12)
-                    recorder.record_hop(
-                        hop_position, hop_eligible, route_action, r_vrp, hop_spread
-                    )
+                    if recorder is not None:
+                        recorder.record_hop(
+                            hop_position, hop_eligible, route_action, r_vrp, hop_spread
+                        )
 
                     if next_critic_obs is not None:
                         critic_obs = next_critic_obs
                         break
                     guard += 1
                     assert guard < 10_000, "greedy routing loop did not terminate"
-                recorder.close_period(reference="two_opt")
+                if recorder is not None:
+                    recorder.close_period(reference="two_opt")
 
         self.critic.train()
         self.inv_actor.train()
@@ -554,7 +576,7 @@ class MTPPO:
 
         routing_cost = total_distance * env.delivery_cost
         fill_rate = 100.0 * (1.0 - total_lost_units / total_demand) if total_demand > 0 else 100.0
-        routing = recorder.summary()
+        routing = recorder.summary() if recorder is not None else {}
 
         # What this same episode would have cost if its stops had been visited
         # in 2-opt order instead. The inventory decisions (and therefore which
