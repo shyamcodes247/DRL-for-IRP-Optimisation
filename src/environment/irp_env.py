@@ -575,13 +575,17 @@ class IRPEnv(gym.Env):
         """Not implemented. `route_log` is reserved for a future tour visualisation."""
         pass
 
-    # Returns distance between two nodes
-    # Euclidean distance rounded to the nearest integer, matching the rounding
-    # convention used by the benchmark instances so results stay comparable.
+    # Returns distance between two nodes.
+    # Euclidean distance FLOORED to an integer, matching how Archetti et al.
+    # (2007) generate their transportation costs:
+    #     c_ij = floor( sqrt( (X_i - X_j)^2 + (Y_i - Y_j)^2 ) )
+    # Their published optimal costs are computed against floored distances, so
+    # rounding to nearest here would quietly inflate every tour by ~0.5 per leg
+    # against the benchmark and make the comparison unfair.
     def _get_distance(self, node_1: npt.NDArray[np.float32], node_2: npt.NDArray[np.float32]) -> int:
-        return round(np.linalg.norm(
+        return int(np.floor(np.linalg.norm(
             node_1 - node_2, ord=2
-        ))
+        )))
 
     # Updates history arrays based on movement in time
     # Sliding window of shape (num_retailers, lookback_window): shift left, drop the

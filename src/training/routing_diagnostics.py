@@ -6,16 +6,18 @@ import numpy.typing as npt
 
 def distance_matrix(coords: npt.NDArray) -> npt.NDArray:
     """
-    Pairwise node distances, rounded the same way `IRPEnv._get_distance`
-    rounds them, so a reference tour computed here is directly comparable to
-    the distance the environment actually charged.
+    Pairwise node distances, floored exactly as `IRPEnv._get_distance` floors
+    them (Archetti et al., 2007's `c_ij`), so a reference tour computed here
+    is directly comparable to the distance the environment actually charged.
+    If the two ever disagree, every excess ratio in the diagnostics is
+    measured against the wrong yardstick.
 
     Args:
         coords: (num_nodes, loc_dim) array, depot first (see `IRPEnv`'s node
             indexing convention).
     """
     diff = coords[:, None, :] - coords[None, :, :]
-    return np.round(np.sqrt((diff ** 2).sum(axis=-1)))
+    return np.floor(np.sqrt((diff ** 2).sum(axis=-1)))
 
 
 def tour_length(dist: npt.NDArray, order: Sequence[int]) -> float:

@@ -16,18 +16,42 @@ from training.routing_diagnostics import (
 SQUARE = np.array([[0.0, 0.0], [0.0, 100.0], [100.0, 100.0], [100.0, 0.0], [0.0, 50.0]])
 
 
-def test_distance_matrix_matches_env_rounding():
-    coords = np.array([[0.0, 0.0], [3.0, 4.0]])
+def test_distance_matrix_floors_like_archetti():
+    """
+    Archetti et al. (2007) define c_ij = floor(sqrt(dx^2 + dy^2)), and their
+    published optima are computed against that. A 3-4-5 triangle cannot tell
+    floor from round, so this pins a case where they differ.
+    """
+    coords = np.array([[0.0, 0.0], [3.0, 4.0], [0.0, 5.9]])
     dist = distance_matrix(coords)
-    assert dist[0, 1] == 5.0
+    assert dist[0, 1] == 5.0                      # exact: floor == round
+    assert dist[0, 2] == 5.0                      # 5.9 floors to 5, would round to 6
     assert dist[0, 0] == 0.0
     assert np.allclose(dist, dist.T)
 
 
+def test_distance_matrix_agrees_with_the_environment():
+    """
+    The reference tours are only a fair yardstick if they measure distance the
+    same way the environment charges it.
+    """
+    from environment.irp_env import IRPEnv
+
+    from conftest import TEST_INSTANCE_PATHS
+
+    env = IRPEnv(TEST_INSTANCE_PATHS[0], loc_dim=2, lookback_window=3,
+                 product_price=None, penalty_factor=None)
+    coords = np.vstack([env.depot_location, env.location])
+    dist = distance_matrix(coords)
+    for i in range(len(coords)):
+        for j in range(len(coords)):
+            assert dist[i, j] == env._get_distance(coords[i], coords[j])
+
+
 def test_tour_length_is_closed():
     dist = distance_matrix(np.array([[0.0, 0.0], [0.0, 10.0], [10.0, 10.0]]))
-    # depot -> 1 -> 2 -> depot = 10 + 10 + round(sqrt(200))
-    assert tour_length(dist, [1, 2]) == 10 + 10 + round(np.sqrt(200))
+    # depot -> 1 -> 2 -> depot = 10 + 10 + floor(sqrt(200))
+    assert tour_length(dist, [1, 2]) == 10 + 10 + np.floor(np.sqrt(200))
     assert tour_length(dist, []) == 0.0
 
 
