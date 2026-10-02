@@ -89,12 +89,27 @@ are meant to be read and are committed.
 
 ## Setup
 
-Requires Python 3.10+ (developed and tested on 3.12).
+Requires Python 3.10+ (developed and tested on 3.12.8).
 
 ```bash
-python3 -m venv .venv
-source .venv/bin/activate        # Windows: .venv\Scripts\activate
+python3 -m venv .venv-bn
+source .venv-bn/bin/activate     # Windows: .venv-bn\Scripts\activate
 pip install numpy pandas gymnasium torch pytest
+```
+
+On a machine with no CUDA GPU (any Mac, for instance), install the CPU-only
+torch build instead of the line above -- the default wheel pulls in CUDA
+libraries that cannot be used and that take up most of the environment's size:
+
+```bash
+pip install numpy pandas gymnasium pytest
+pip install torch --index-url https://download.pytorch.org/whl/cpu
+```
+
+Tests and the training CLI are run from `src/`, which is the import root:
+
+```bash
+cd src && python -m pytest tests/ -q
 ```
 
 ## Usage
