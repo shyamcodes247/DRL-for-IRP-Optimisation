@@ -157,6 +157,24 @@ def time_instance(agent: MTPPO, env: IRPEnv, repeats: int) -> Dict[str, float]:
     }
 
 
+def split_run_spec(spec: str, default_checkpoint: str) -> tuple:
+    """
+    Parses a `--run-dir` value, which is either a path or `PATH:CHECKPOINT.pt`.
+    Different seeds often reach their best epoch at different points, so each
+    run needs to be able to name its own checkpoint; forcing one name across
+    all runs would mean either three separate invocations or timing the wrong
+    weights.
+
+    The suffix is only treated as a checkpoint when it ends in `.pt`, so a
+    path that happens to contain a colon is left alone.
+    """
+    if ":" in spec:
+        head, tail = spec.rsplit(":", 1)
+        if tail.endswith(".pt"):
+            return Path(head).resolve(), tail
+    return Path(spec).resolve(), default_checkpoint
+
+
 def benchmark_run(run_dir: Path, repeats: int, device: str,
                   checkpoint_name: str) -> List[Dict[str, Any]]:
     """Times every instance in one run's held-out evaluation split."""
@@ -197,6 +215,7 @@ def benchmark_run(run_dir: Path, repeats: int, device: str,
         rows.append({
             "run": run_dir.name,
             "seed": config["seed"],
+            "checkpoint": checkpoint_name,
             **meta,
             **timing,
             "env_build_s": env_s,
@@ -215,11 +234,15 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__,
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--run-dir", action="append", required=True,
-                        help="A results directory containing config.json and checkpoints/. "
-                             "Repeat for several seeds.")
+                        help="A results directory containing config.json and checkpoints/, "
+                             "optionally suffixed ':<checkpoint>.pt' to time a specific "
+                             "checkpoint of that run (e.g. "
+                             "src/results/seed0_...:mtppo_epoch400.pt). Repeat for several "
+                             "seeds; each may name a different checkpoint.")
     parser.add_argument("--checkpoint-name", default="mtppo_best.pt",
-                        help="Checkpoint file inside <run-dir>/checkpoints (default: the "
-                             "best-validation checkpoint each run saved itself).")
+                        help="Checkpoint used for any --run-dir without its own ':<name>.pt' "
+                             "suffix (default: the best-validation checkpoint each run saved "
+                             "itself).")
     parser.add_argument("--repeats", type=int, default=10,
                         help="Timed solves per instance, after one discarded warm-up.")
     parser.add_argument("--device", default="cpu")
@@ -237,9 +260,9 @@ def main() -> None:
 
     rows: List[Dict[str, Any]] = []
     for run in args.run_dir:
-        run_dir = Path(run).resolve()
-        print(f"\n{run_dir.name} ({args.checkpoint_name}, {args.repeats} timed repeats)")
-        rows.extend(benchmark_run(run_dir, args.repeats, args.device, args.checkpoint_name))
+        run_dir, checkpoint_name = split_run_spec(run, args.checkpoint_name)
+        print(f"\n{run_dir.name} ({checkpoint_name}, {args.repeats} timed repeats)")
+        rows.extend(benchmark_run(run_dir, args.repeats, args.device, checkpoint_name))
 
     for row in rows:
         row["archetti_s"] = published.get((row["cost_class"], row["H"], row["n"]))
