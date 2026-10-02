@@ -783,6 +783,7 @@ class MTPPO:
         ppo_epochs: int = 4,
         log_every: int = 1,
         on_epoch_end: Any = None,
+        lr_decay: Optional[str] = None,
     ) -> None:
         """
         Top-level training loop (Algorithm 1): for each epoch, roll out
@@ -804,13 +805,33 @@ class MTPPO:
             log_every: Print aggregated episode stats every this many epochs.
             on_epoch_end: Optional callback `(epoch, episode_stats, losses)`
                 invoked after each epoch's update, e.g. for checkpointing.
+            lr_decay: Optional learning-rate schedule decayed over
+                `num_epochs`, applied to all three optimizers alike:
+                "cosine" anneals smoothly to zero, "linear" ramps down to 10%
+                of the starting rate. `None` holds the rate fixed. Decay
+                mostly helps late in a long run, where a rate that was right
+                early keeps nudging an already-reasonable policy around.
         """
         buffer = RolloutBuffer()
+        optimizers = (self.critic_optimizer, self.inv_optimizer, self.routing_optimizer)
+        if lr_decay == "cosine":
+            schedulers = [torch.optim.lr_scheduler.CosineAnnealingLR(o, T_max=num_epochs)
+                          for o in optimizers]
+        elif lr_decay == "linear":
+            schedulers = [torch.optim.lr_scheduler.LinearLR(
+                o, start_factor=1.0, end_factor=0.1, total_iters=num_epochs)
+                for o in optimizers]
+        elif lr_decay in (None, "none"):
+            schedulers = []
+        else:
+            raise ValueError(f"unknown lr_decay {lr_decay!r}; expected 'cosine', 'linear' or None")
 
         for epoch in range(1, num_epochs + 1):
             episode_stats = [self.collect_episode(env, buffer) for env in envs]
 
             losses = self.update(buffer, ppo_epochs=ppo_epochs)
+            for scheduler in schedulers:
+                scheduler.step()
 
             if log_every and epoch % log_every == 0:
                 mean_r_inv = sum(s["r_inv"] for s in episode_stats) / len(episode_stats)

@@ -105,6 +105,44 @@ def resolve_eval_paths(args: argparse.Namespace, train_paths: List[str]) -> List
     return paths
 
 
+def resolve_val_paths(args: argparse.Namespace, train_paths: List[str], eval_paths: List[str]) -> List[str]:
+    """
+    Resolves the validation pool from --val-manifest, used only to pick the
+    best checkpoint. Returns an empty list when no manifest is given, in which
+    case no best checkpoint is selected.
+
+    Overlap with either other pool is refused rather than warned about: an
+    overlap with training makes the selection meaningless (the model has seen
+    those instances), and an overlap with evaluation silently turns the
+    held-out number into a best-of-N, which is the kind of mistake that is
+    invisible in the results and hard to catch later.
+    """
+    if not args.val_manifest:
+        return []
+    candidates = _read_manifest(args.val_manifest, args.data_root)
+    if not candidates:
+        raise FileNotFoundError(f"No instance files found in val manifest: {args.val_manifest}")
+    paths = _filter_instance_files(candidates)
+    if not paths:
+        raise FileNotFoundError(f"No valid instance files found in val manifest: {args.val_manifest}")
+
+    overlap_train = sorted(set(paths) & set(train_paths))
+    if overlap_train:
+        raise ValueError(
+            f"{len(overlap_train)} validation instance(s) are also in the training pool "
+            f"(e.g. {Path(overlap_train[0]).name}). A checkpoint cannot be selected on "
+            f"instances it was trained on."
+        )
+    overlap_eval = sorted(set(paths) & set(eval_paths))
+    if overlap_eval:
+        raise ValueError(
+            f"{len(overlap_eval)} validation instance(s) are also in the evaluation pool "
+            f"(e.g. {Path(overlap_eval[0]).name}). Selecting on the held-out set would "
+            f"stop it being held out."
+        )
+    return paths
+
+
 _DEFAULT_PRODUCT_PRICE = 20.0
 _DEFAULT_PENALTY_FACTOR = 0.3
 
@@ -211,6 +249,17 @@ def parse_args() -> argparse.Namespace:
         "greedily every --eval-every epochs but never trained on. Without this, "
         "evaluation runs on the training pool itself (no generalization signal).",
     )
+    parser.add_argument(
+        "--val-manifest",
+        type=str,
+        default=None,
+        help="Path to a manifest file (e.g. data/splits/val_by_replicate.txt) listing "
+        "validation instances, never trained on. The checkpoint with the lowest mean "
+        "total cost on this set is saved as mtppo_best.pt. Keep it disjoint from both "
+        "--train-manifest and --eval-manifest: selecting a checkpoint on the held-out "
+        "evaluation set would stop that set being held out, and the reported number "
+        "would be the best of N tries rather than an honest estimate.",
+    )
 
     parser.add_argument("--loc-dim", type=int, default=2)
     parser.add_argument("--lookback-window", type=int, default=3)
@@ -256,6 +305,16 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--mlp-dims", type=int, nargs="+", default=[128, 128])
 
     parser.add_argument("--lr", type=float, default=1e-3)
+    parser.add_argument(
+        "--lr-decay",
+        type=str,
+        choices=["none", "cosine", "linear"],
+        default="none",
+        help="Decay the learning rate over --num-epochs for all three networks: "
+        "'cosine' anneals to zero, 'linear' ramps to 10%% of the start. Mainly "
+        "useful on long runs, where the rate that suited early training keeps "
+        "jostling an already-reasonable policy.",
+    )
     parser.add_argument("--gamma", type=float, default=0.9)
     parser.add_argument("--clip-eps", type=float, default=0.2)
     parser.add_argument("--value-coef", type=float, default=0.5)
@@ -272,7 +331,7 @@ def parse_args() -> argparse.Namespace:
         "skipping at the cost of action range; watch skip_rate in metrics.csv.",
     )
 
-    parser.add_argument("--num-epochs", type=int, default=200)
+    parser.add_argument("--num-epochs", type=int, default=500)
     parser.add_argument(
         "--ppo-epochs",
         type=int,
@@ -309,7 +368,7 @@ def parse_args() -> argparse.Namespace:
         help="Prefix for the run's results subfolder name (default: derived from the "
         "instance file(s)).",
     )
-    parser.add_argument("--checkpoint-every", type=int, default=50)
+    parser.add_argument("--checkpoint-every", type=int, default=25)
     parser.add_argument(
         "--eval-every",
         type=int,
@@ -323,6 +382,13 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> None:
     args = parse_args()
+
+    # One thread per process. The workload is many small, sequential forward
+    # passes over 5-51 node graphs, which torch's intra-op pool barely speeds
+    # up, and left at the default every concurrently-running seed grabs every
+    # core and they contend. Pinning it makes parallel seeds roughly
+    # independent, and must happen before any tensor work.
+    torch.set_num_threads(1)
 
     torch.manual_seed(args.seed)
 
@@ -357,6 +423,13 @@ def main() -> None:
     else:
         eval_envs = build_envs(eval_paths, args)
         print(f"Loaded {len(eval_envs)} held-out evaluation instance(s): {_describe(eval_paths)}")
+
+    val_paths = resolve_val_paths(args, train_paths, eval_paths)
+    val_envs = build_envs(val_paths, args) if val_paths else []
+    if val_envs:
+        print(f"Loaded {len(val_envs)} validation instance(s) for checkpoint selection: {_describe(val_paths)}")
+    else:
+        print("No validation set (pass --val-manifest to select a best checkpoint).")
 
     run_name = args.run_name or derive_run_name(train_paths)
 
@@ -442,7 +515,35 @@ def main() -> None:
             f"cost if 2-opt routed={mean('total_cost_best_route'):9.2f}"
         )
 
+    def run_validation(epoch):
+        """
+        Scores the current policy on the validation pool and keeps the best
+        checkpoint seen. Separate from `run_evaluation` on purpose: this one
+        drives a decision, so it must never touch the held-out set.
+        """
+        nonlocal best_val_cost, best_val_epoch
+        costs = []
+        for env, path in zip(val_envs, val_paths):
+            metrics = mtppo.evaluate_episode(env)
+            costs.append(metrics["total_cost"])
+            logger.log_metrics(
+                "val", epoch,
+                {"instance": f"{Path(path).parent.name}/{Path(path).stem}", **metrics},
+            )
+        mean_cost = sum(costs) / len(costs)
+        improved = best_val_cost is None or mean_cost < best_val_cost
+        if improved:
+            best_val_cost, best_val_epoch = mean_cost, epoch
+            mtppo.save(logger.checkpoint_path("mtppo_best.pt"))
+        print(
+            f"        val: mean total_cost={mean_cost:9.2f}"
+            + (f"  <- new best, saved mtppo_best.pt" if improved
+               else f"  (best {best_val_cost:9.2f} @ epoch {best_val_epoch})")
+        )
+
     last_eval_epoch = None
+    best_val_cost = None
+    best_val_epoch = None
 
     def on_epoch_end(epoch, episode_stats, losses):
         nonlocal last_eval_epoch
@@ -470,6 +571,8 @@ def main() -> None:
         if args.eval_every and epoch % args.eval_every == 0:
             run_evaluation(epoch)
             last_eval_epoch = epoch
+            if val_envs:
+                run_validation(epoch)
         if epoch % args.checkpoint_every == 0:
             path = logger.checkpoint_path(f"mtppo_epoch{epoch}.pt")
             mtppo.save(path)
@@ -480,6 +583,7 @@ def main() -> None:
             envs=train_envs,
             num_epochs=args.num_epochs,
             ppo_epochs=args.ppo_epochs,
+            lr_decay=args.lr_decay,
             log_every=args.log_every,
             on_epoch_end=on_epoch_end,
         )
@@ -496,6 +600,13 @@ def main() -> None:
     final_path = logger.checkpoint_path("mtppo_final.pt")
     mtppo.save(final_path)
     print(f"Training complete. Final checkpoint -> {final_path}")
+    if best_val_epoch is not None:
+        print(
+            f"Best checkpoint by validation cost: epoch {best_val_epoch} "
+            f"(mean total_cost={best_val_cost:.2f}) -> "
+            f"{logger.checkpoint_path('mtppo_best.pt')}"
+        )
+        print(f"Validation history -> {logger.run_dir / 'val.csv'}")
     print(f"Metrics -> {logger.run_dir / 'metrics.csv'}")
     print(f"Eval history -> {logger.run_dir / 'eval.csv'}")
 
