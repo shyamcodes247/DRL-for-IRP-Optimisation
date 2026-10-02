@@ -228,7 +228,7 @@ def main() -> None:
                              "Pentium IV the published times were measured on.")
     parser.add_argument("--out", default=None,
                         help="Where to write the per-instance CSV "
-                             "(default: results/inference_timing.csv).")
+                             "(default: reports/inference_timing.csv).")
     args = parser.parse_args()
 
     torch.set_num_threads(args.threads)
@@ -248,7 +248,7 @@ def main() -> None:
             if row["archetti_s"] else None
         )
 
-    out = Path(args.out) if args.out else PROJECT_ROOT / "results" / "inference_timing.csv"
+    out = Path(args.out) if args.out else PROJECT_ROOT / "reports" / "inference_timing.csv"
     out.parent.mkdir(parents=True, exist_ok=True)
     with open(out, "w", newline="", encoding="utf-8") as handle:
         writer = csv.DictWriter(handle, fieldnames=list(rows[0].keys()))

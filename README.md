@@ -72,13 +72,20 @@ src/
   agent/           GIN encoder, inventory actor, routing actor, critic, MLP head
   environment/     IRPEnv (the simulation) and the benchmark-instance parser
   training/        MTPPO algorithm, rollout buffer, train.py CLI entry point
+  scripts/         standalone measurement tools (e.g. benchmark_inference.py)
   utils/           ResultsLogger (per-run metrics/config/checkpoints)
   tests/           pytest suite (environment invariants, network smoke tests, ...)
-  results/         one timestamped subfolder per training run (gitignored data)
+  results/         one timestamped subfolder per training run (gitignored)
 data/
   Instances_{low,high}cost_H{3,6}/   Archetti et al. (2007)'s benchmark instances
-  splits/                            train/eval manifests used by --train-manifest
+  splits/                            train/val/eval manifests, by replicate
+  benchmarks/                        published results transcribed from the paper
+reports/           committed write-ups and their data (not run output)
 ```
+
+Note the distinction between `src/results/` and `reports/`: the former holds
+raw per-run output and is gitignored, the latter holds finished write-ups that
+are meant to be read and are committed.
 
 ## Setup
 
