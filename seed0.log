@@ -1,0 +1,780 @@
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:231: UserWarning: [33mWARN: Box low's precision lowered by casting to float32, current low.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:297: UserWarning: [33mWARN: Box high's precision lowered by casting to float32, current high.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:231: UserWarning: [33mWARN: Box low's precision lowered by casting to float32, current low.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:297: UserWarning: [33mWARN: Box high's precision lowered by casting to float32, current high.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:231: UserWarning: [33mWARN: Box low's precision lowered by casting to float32, current low.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:297: UserWarning: [33mWARN: Box high's precision lowered by casting to float32, current high.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:231: UserWarning: [33mWARN: Box low's precision lowered by casting to float32, current low.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:297: UserWarning: [33mWARN: Box high's precision lowered by casting to float32, current high.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:231: UserWarning: [33mWARN: Box low's precision lowered by casting to float32, current low.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:297: UserWarning: [33mWARN: Box high's precision lowered by casting to float32, current high.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:231: UserWarning: [33mWARN: Box low's precision lowered by casting to float32, current low.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:297: UserWarning: [33mWARN: Box high's precision lowered by casting to float32, current high.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:231: UserWarning: [33mWARN: Box low's precision lowered by casting to float32, current low.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:297: UserWarning: [33mWARN: Box high's precision lowered by casting to float32, current high.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:231: UserWarning: [33mWARN: Box low's precision lowered by casting to float32, current low.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:297: UserWarning: [33mWARN: Box high's precision lowered by casting to float32, current high.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:231: UserWarning: [33mWARN: Box low's precision lowered by casting to float32, current low.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:297: UserWarning: [33mWARN: Box high's precision lowered by casting to float32, current high.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:231: UserWarning: [33mWARN: Box low's precision lowered by casting to float32, current low.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:297: UserWarning: [33mWARN: Box high's precision lowered by casting to float32, current high.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:231: UserWarning: [33mWARN: Box low's precision lowered by casting to float32, current low.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:297: UserWarning: [33mWARN: Box high's precision lowered by casting to float32, current high.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:231: UserWarning: [33mWARN: Box low's precision lowered by casting to float32, current low.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:297: UserWarning: [33mWARN: Box high's precision lowered by casting to float32, current high.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:231: UserWarning: [33mWARN: Box low's precision lowered by casting to float32, current low.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:297: UserWarning: [33mWARN: Box high's precision lowered by casting to float32, current high.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:231: UserWarning: [33mWARN: Box low's precision lowered by casting to float32, current low.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:297: UserWarning: [33mWARN: Box high's precision lowered by casting to float32, current high.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:231: UserWarning: [33mWARN: Box low's precision lowered by casting to float32, current low.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:297: UserWarning: [33mWARN: Box high's precision lowered by casting to float32, current high.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:231: UserWarning: [33mWARN: Box low's precision lowered by casting to float32, current low.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:297: UserWarning: [33mWARN: Box high's precision lowered by casting to float32, current high.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:231: UserWarning: [33mWARN: Box low's precision lowered by casting to float32, current low.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:297: UserWarning: [33mWARN: Box high's precision lowered by casting to float32, current high.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:231: UserWarning: [33mWARN: Box low's precision lowered by casting to float32, current low.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:297: UserWarning: [33mWARN: Box high's precision lowered by casting to float32, current high.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:231: UserWarning: [33mWARN: Box low's precision lowered by casting to float32, current low.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:297: UserWarning: [33mWARN: Box high's precision lowered by casting to float32, current high.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:231: UserWarning: [33mWARN: Box low's precision lowered by casting to float32, current low.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:297: UserWarning: [33mWARN: Box high's precision lowered by casting to float32, current high.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:231: UserWarning: [33mWARN: Box low's precision lowered by casting to float32, current low.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:297: UserWarning: [33mWARN: Box high's precision lowered by casting to float32, current high.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:231: UserWarning: [33mWARN: Box low's precision lowered by casting to float32, current low.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:297: UserWarning: [33mWARN: Box high's precision lowered by casting to float32, current high.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:231: UserWarning: [33mWARN: Box low's precision lowered by casting to float32, current low.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:297: UserWarning: [33mWARN: Box high's precision lowered by casting to float32, current high.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:231: UserWarning: [33mWARN: Box low's precision lowered by casting to float32, current low.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:297: UserWarning: [33mWARN: Box high's precision lowered by casting to float32, current high.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:231: UserWarning: [33mWARN: Box low's precision lowered by casting to float32, current low.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:297: UserWarning: [33mWARN: Box high's precision lowered by casting to float32, current high.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:231: UserWarning: [33mWARN: Box low's precision lowered by casting to float32, current low.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:297: UserWarning: [33mWARN: Box high's precision lowered by casting to float32, current high.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:231: UserWarning: [33mWARN: Box low's precision lowered by casting to float32, current low.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:297: UserWarning: [33mWARN: Box high's precision lowered by casting to float32, current high.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:231: UserWarning: [33mWARN: Box low's precision lowered by casting to float32, current low.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:297: UserWarning: [33mWARN: Box high's precision lowered by casting to float32, current high.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:231: UserWarning: [33mWARN: Box low's precision lowered by casting to float32, current low.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:297: UserWarning: [33mWARN: Box high's precision lowered by casting to float32, current high.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:231: UserWarning: [33mWARN: Box low's precision lowered by casting to float32, current low.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:297: UserWarning: [33mWARN: Box high's precision lowered by casting to float32, current high.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:231: UserWarning: [33mWARN: Box low's precision lowered by casting to float32, current low.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:297: UserWarning: [33mWARN: Box high's precision lowered by casting to float32, current high.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:231: UserWarning: [33mWARN: Box low's precision lowered by casting to float32, current low.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:297: UserWarning: [33mWARN: Box high's precision lowered by casting to float32, current high.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:231: UserWarning: [33mWARN: Box low's precision lowered by casting to float32, current low.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:297: UserWarning: [33mWARN: Box high's precision lowered by casting to float32, current high.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:231: UserWarning: [33mWARN: Box low's precision lowered by casting to float32, current low.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:297: UserWarning: [33mWARN: Box high's precision lowered by casting to float32, current high.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:231: UserWarning: [33mWARN: Box low's precision lowered by casting to float32, current low.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:297: UserWarning: [33mWARN: Box high's precision lowered by casting to float32, current high.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:231: UserWarning: [33mWARN: Box low's precision lowered by casting to float32, current low.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:297: UserWarning: [33mWARN: Box high's precision lowered by casting to float32, current high.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:231: UserWarning: [33mWARN: Box low's precision lowered by casting to float32, current low.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:297: UserWarning: [33mWARN: Box high's precision lowered by casting to float32, current high.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:231: UserWarning: [33mWARN: Box low's precision lowered by casting to float32, current low.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:297: UserWarning: [33mWARN: Box high's precision lowered by casting to float32, current high.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:231: UserWarning: [33mWARN: Box low's precision lowered by casting to float32, current low.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:297: UserWarning: [33mWARN: Box high's precision lowered by casting to float32, current high.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:231: UserWarning: [33mWARN: Box low's precision lowered by casting to float32, current low.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:297: UserWarning: [33mWARN: Box high's precision lowered by casting to float32, current high.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:231: UserWarning: [33mWARN: Box low's precision lowered by casting to float32, current low.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:297: UserWarning: [33mWARN: Box high's precision lowered by casting to float32, current high.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:231: UserWarning: [33mWARN: Box low's precision lowered by casting to float32, current low.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:297: UserWarning: [33mWARN: Box high's precision lowered by casting to float32, current high.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:231: UserWarning: [33mWARN: Box low's precision lowered by casting to float32, current low.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:297: UserWarning: [33mWARN: Box high's precision lowered by casting to float32, current high.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:231: UserWarning: [33mWARN: Box low's precision lowered by casting to float32, current low.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:297: UserWarning: [33mWARN: Box high's precision lowered by casting to float32, current high.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:231: UserWarning: [33mWARN: Box low's precision lowered by casting to float32, current low.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:297: UserWarning: [33mWARN: Box high's precision lowered by casting to float32, current high.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:231: UserWarning: [33mWARN: Box low's precision lowered by casting to float32, current low.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:297: UserWarning: [33mWARN: Box high's precision lowered by casting to float32, current high.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:231: UserWarning: [33mWARN: Box low's precision lowered by casting to float32, current low.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:297: UserWarning: [33mWARN: Box high's precision lowered by casting to float32, current high.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:231: UserWarning: [33mWARN: Box low's precision lowered by casting to float32, current low.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:297: UserWarning: [33mWARN: Box high's precision lowered by casting to float32, current high.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:231: UserWarning: [33mWARN: Box low's precision lowered by casting to float32, current low.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:297: UserWarning: [33mWARN: Box high's precision lowered by casting to float32, current high.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:231: UserWarning: [33mWARN: Box low's precision lowered by casting to float32, current low.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:297: UserWarning: [33mWARN: Box high's precision lowered by casting to float32, current high.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:231: UserWarning: [33mWARN: Box low's precision lowered by casting to float32, current low.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:297: UserWarning: [33mWARN: Box high's precision lowered by casting to float32, current high.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:231: UserWarning: [33mWARN: Box low's precision lowered by casting to float32, current low.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:297: UserWarning: [33mWARN: Box high's precision lowered by casting to float32, current high.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:231: UserWarning: [33mWARN: Box low's precision lowered by casting to float32, current low.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:297: UserWarning: [33mWARN: Box high's precision lowered by casting to float32, current high.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:231: UserWarning: [33mWARN: Box low's precision lowered by casting to float32, current low.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:297: UserWarning: [33mWARN: Box high's precision lowered by casting to float32, current high.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:231: UserWarning: [33mWARN: Box low's precision lowered by casting to float32, current low.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:297: UserWarning: [33mWARN: Box high's precision lowered by casting to float32, current high.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:231: UserWarning: [33mWARN: Box low's precision lowered by casting to float32, current low.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:297: UserWarning: [33mWARN: Box high's precision lowered by casting to float32, current high.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:231: UserWarning: [33mWARN: Box low's precision lowered by casting to float32, current low.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:297: UserWarning: [33mWARN: Box high's precision lowered by casting to float32, current high.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:231: UserWarning: [33mWARN: Box low's precision lowered by casting to float32, current low.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:297: UserWarning: [33mWARN: Box high's precision lowered by casting to float32, current high.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:231: UserWarning: [33mWARN: Box low's precision lowered by casting to float32, current low.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:297: UserWarning: [33mWARN: Box high's precision lowered by casting to float32, current high.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:231: UserWarning: [33mWARN: Box low's precision lowered by casting to float32, current low.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:297: UserWarning: [33mWARN: Box high's precision lowered by casting to float32, current high.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:231: UserWarning: [33mWARN: Box low's precision lowered by casting to float32, current low.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:297: UserWarning: [33mWARN: Box high's precision lowered by casting to float32, current high.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:231: UserWarning: [33mWARN: Box low's precision lowered by casting to float32, current low.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:297: UserWarning: [33mWARN: Box high's precision lowered by casting to float32, current high.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:231: UserWarning: [33mWARN: Box low's precision lowered by casting to float32, current low.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:297: UserWarning: [33mWARN: Box high's precision lowered by casting to float32, current high.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:231: UserWarning: [33mWARN: Box low's precision lowered by casting to float32, current low.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:297: UserWarning: [33mWARN: Box high's precision lowered by casting to float32, current high.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:231: UserWarning: [33mWARN: Box low's precision lowered by casting to float32, current low.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:297: UserWarning: [33mWARN: Box high's precision lowered by casting to float32, current high.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:231: UserWarning: [33mWARN: Box low's precision lowered by casting to float32, current low.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:297: UserWarning: [33mWARN: Box high's precision lowered by casting to float32, current high.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:231: UserWarning: [33mWARN: Box low's precision lowered by casting to float32, current low.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:297: UserWarning: [33mWARN: Box high's precision lowered by casting to float32, current high.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:231: UserWarning: [33mWARN: Box low's precision lowered by casting to float32, current low.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:297: UserWarning: [33mWARN: Box high's precision lowered by casting to float32, current high.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:231: UserWarning: [33mWARN: Box low's precision lowered by casting to float32, current low.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:297: UserWarning: [33mWARN: Box high's precision lowered by casting to float32, current high.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:231: UserWarning: [33mWARN: Box low's precision lowered by casting to float32, current low.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:297: UserWarning: [33mWARN: Box high's precision lowered by casting to float32, current high.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:231: UserWarning: [33mWARN: Box low's precision lowered by casting to float32, current low.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:297: UserWarning: [33mWARN: Box high's precision lowered by casting to float32, current high.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:231: UserWarning: [33mWARN: Box low's precision lowered by casting to float32, current low.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:297: UserWarning: [33mWARN: Box high's precision lowered by casting to float32, current high.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:231: UserWarning: [33mWARN: Box low's precision lowered by casting to float32, current low.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:297: UserWarning: [33mWARN: Box high's precision lowered by casting to float32, current high.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:231: UserWarning: [33mWARN: Box low's precision lowered by casting to float32, current low.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:297: UserWarning: [33mWARN: Box high's precision lowered by casting to float32, current high.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:231: UserWarning: [33mWARN: Box low's precision lowered by casting to float32, current low.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:297: UserWarning: [33mWARN: Box high's precision lowered by casting to float32, current high.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:231: UserWarning: [33mWARN: Box low's precision lowered by casting to float32, current low.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:297: UserWarning: [33mWARN: Box high's precision lowered by casting to float32, current high.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:231: UserWarning: [33mWARN: Box low's precision lowered by casting to float32, current low.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:297: UserWarning: [33mWARN: Box high's precision lowered by casting to float32, current high.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:231: UserWarning: [33mWARN: Box low's precision lowered by casting to float32, current low.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:297: UserWarning: [33mWARN: Box high's precision lowered by casting to float32, current high.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:231: UserWarning: [33mWARN: Box low's precision lowered by casting to float32, current low.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:297: UserWarning: [33mWARN: Box high's precision lowered by casting to float32, current high.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:231: UserWarning: [33mWARN: Box low's precision lowered by casting to float32, current low.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:297: UserWarning: [33mWARN: Box high's precision lowered by casting to float32, current high.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:231: UserWarning: [33mWARN: Box low's precision lowered by casting to float32, current low.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:297: UserWarning: [33mWARN: Box high's precision lowered by casting to float32, current high.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:231: UserWarning: [33mWARN: Box low's precision lowered by casting to float32, current low.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:297: UserWarning: [33mWARN: Box high's precision lowered by casting to float32, current high.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:231: UserWarning: [33mWARN: Box low's precision lowered by casting to float32, current low.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:297: UserWarning: [33mWARN: Box high's precision lowered by casting to float32, current high.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:231: UserWarning: [33mWARN: Box low's precision lowered by casting to float32, current low.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:297: UserWarning: [33mWARN: Box high's precision lowered by casting to float32, current high.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:231: UserWarning: [33mWARN: Box low's precision lowered by casting to float32, current low.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:297: UserWarning: [33mWARN: Box high's precision lowered by casting to float32, current high.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:231: UserWarning: [33mWARN: Box low's precision lowered by casting to float32, current low.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:297: UserWarning: [33mWARN: Box high's precision lowered by casting to float32, current high.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:231: UserWarning: [33mWARN: Box low's precision lowered by casting to float32, current low.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:297: UserWarning: [33mWARN: Box high's precision lowered by casting to float32, current high.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:231: UserWarning: [33mWARN: Box low's precision lowered by casting to float32, current low.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:297: UserWarning: [33mWARN: Box high's precision lowered by casting to float32, current high.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:231: UserWarning: [33mWARN: Box low's precision lowered by casting to float32, current low.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:297: UserWarning: [33mWARN: Box high's precision lowered by casting to float32, current high.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:231: UserWarning: [33mWARN: Box low's precision lowered by casting to float32, current low.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:297: UserWarning: [33mWARN: Box high's precision lowered by casting to float32, current high.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:231: UserWarning: [33mWARN: Box low's precision lowered by casting to float32, current low.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:297: UserWarning: [33mWARN: Box high's precision lowered by casting to float32, current high.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:231: UserWarning: [33mWARN: Box low's precision lowered by casting to float32, current low.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:297: UserWarning: [33mWARN: Box high's precision lowered by casting to float32, current high.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:231: UserWarning: [33mWARN: Box low's precision lowered by casting to float32, current low.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:297: UserWarning: [33mWARN: Box high's precision lowered by casting to float32, current high.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:231: UserWarning: [33mWARN: Box low's precision lowered by casting to float32, current low.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:297: UserWarning: [33mWARN: Box high's precision lowered by casting to float32, current high.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:231: UserWarning: [33mWARN: Box low's precision lowered by casting to float32, current low.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:297: UserWarning: [33mWARN: Box high's precision lowered by casting to float32, current high.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:231: UserWarning: [33mWARN: Box low's precision lowered by casting to float32, current low.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:297: UserWarning: [33mWARN: Box high's precision lowered by casting to float32, current high.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:231: UserWarning: [33mWARN: Box low's precision lowered by casting to float32, current low.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:297: UserWarning: [33mWARN: Box high's precision lowered by casting to float32, current high.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:231: UserWarning: [33mWARN: Box low's precision lowered by casting to float32, current low.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:297: UserWarning: [33mWARN: Box high's precision lowered by casting to float32, current high.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:231: UserWarning: [33mWARN: Box low's precision lowered by casting to float32, current low.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:297: UserWarning: [33mWARN: Box high's precision lowered by casting to float32, current high.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:231: UserWarning: [33mWARN: Box low's precision lowered by casting to float32, current low.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:297: UserWarning: [33mWARN: Box high's precision lowered by casting to float32, current high.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:231: UserWarning: [33mWARN: Box low's precision lowered by casting to float32, current low.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:297: UserWarning: [33mWARN: Box high's precision lowered by casting to float32, current high.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:231: UserWarning: [33mWARN: Box low's precision lowered by casting to float32, current low.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:297: UserWarning: [33mWARN: Box high's precision lowered by casting to float32, current high.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:231: UserWarning: [33mWARN: Box low's precision lowered by casting to float32, current low.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:297: UserWarning: [33mWARN: Box high's precision lowered by casting to float32, current high.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:231: UserWarning: [33mWARN: Box low's precision lowered by casting to float32, current low.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:297: UserWarning: [33mWARN: Box high's precision lowered by casting to float32, current high.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:231: UserWarning: [33mWARN: Box low's precision lowered by casting to float32, current low.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:297: UserWarning: [33mWARN: Box high's precision lowered by casting to float32, current high.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:231: UserWarning: [33mWARN: Box low's precision lowered by casting to float32, current low.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:297: UserWarning: [33mWARN: Box high's precision lowered by casting to float32, current high.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:231: UserWarning: [33mWARN: Box low's precision lowered by casting to float32, current low.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:297: UserWarning: [33mWARN: Box high's precision lowered by casting to float32, current high.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:231: UserWarning: [33mWARN: Box low's precision lowered by casting to float32, current low.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:297: UserWarning: [33mWARN: Box high's precision lowered by casting to float32, current high.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:231: UserWarning: [33mWARN: Box low's precision lowered by casting to float32, current low.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:297: UserWarning: [33mWARN: Box high's precision lowered by casting to float32, current high.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:231: UserWarning: [33mWARN: Box low's precision lowered by casting to float32, current low.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:297: UserWarning: [33mWARN: Box high's precision lowered by casting to float32, current high.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:231: UserWarning: [33mWARN: Box low's precision lowered by casting to float32, current low.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:297: UserWarning: [33mWARN: Box high's precision lowered by casting to float32, current high.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:231: UserWarning: [33mWARN: Box low's precision lowered by casting to float32, current low.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:297: UserWarning: [33mWARN: Box high's precision lowered by casting to float32, current high.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:231: UserWarning: [33mWARN: Box low's precision lowered by casting to float32, current low.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:297: UserWarning: [33mWARN: Box high's precision lowered by casting to float32, current high.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:231: UserWarning: [33mWARN: Box low's precision lowered by casting to float32, current low.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:297: UserWarning: [33mWARN: Box high's precision lowered by casting to float32, current high.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:231: UserWarning: [33mWARN: Box low's precision lowered by casting to float32, current low.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:297: UserWarning: [33mWARN: Box high's precision lowered by casting to float32, current high.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:231: UserWarning: [33mWARN: Box low's precision lowered by casting to float32, current low.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:297: UserWarning: [33mWARN: Box high's precision lowered by casting to float32, current high.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:231: UserWarning: [33mWARN: Box low's precision lowered by casting to float32, current low.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:297: UserWarning: [33mWARN: Box high's precision lowered by casting to float32, current high.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:231: UserWarning: [33mWARN: Box low's precision lowered by casting to float32, current low.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:297: UserWarning: [33mWARN: Box high's precision lowered by casting to float32, current high.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:231: UserWarning: [33mWARN: Box low's precision lowered by casting to float32, current low.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:297: UserWarning: [33mWARN: Box high's precision lowered by casting to float32, current high.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:231: UserWarning: [33mWARN: Box low's precision lowered by casting to float32, current low.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:297: UserWarning: [33mWARN: Box high's precision lowered by casting to float32, current high.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:231: UserWarning: [33mWARN: Box low's precision lowered by casting to float32, current low.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:297: UserWarning: [33mWARN: Box high's precision lowered by casting to float32, current high.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:231: UserWarning: [33mWARN: Box low's precision lowered by casting to float32, current low.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:297: UserWarning: [33mWARN: Box high's precision lowered by casting to float32, current high.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:231: UserWarning: [33mWARN: Box low's precision lowered by casting to float32, current low.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:297: UserWarning: [33mWARN: Box high's precision lowered by casting to float32, current high.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:231: UserWarning: [33mWARN: Box low's precision lowered by casting to float32, current low.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:297: UserWarning: [33mWARN: Box high's precision lowered by casting to float32, current high.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:231: UserWarning: [33mWARN: Box low's precision lowered by casting to float32, current low.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:297: UserWarning: [33mWARN: Box high's precision lowered by casting to float32, current high.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:231: UserWarning: [33mWARN: Box low's precision lowered by casting to float32, current low.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:297: UserWarning: [33mWARN: Box high's precision lowered by casting to float32, current high.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:231: UserWarning: [33mWARN: Box low's precision lowered by casting to float32, current low.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:297: UserWarning: [33mWARN: Box high's precision lowered by casting to float32, current high.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:231: UserWarning: [33mWARN: Box low's precision lowered by casting to float32, current low.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:297: UserWarning: [33mWARN: Box high's precision lowered by casting to float32, current high.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:231: UserWarning: [33mWARN: Box low's precision lowered by casting to float32, current low.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:297: UserWarning: [33mWARN: Box high's precision lowered by casting to float32, current high.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:231: UserWarning: [33mWARN: Box low's precision lowered by casting to float32, current low.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:297: UserWarning: [33mWARN: Box high's precision lowered by casting to float32, current high.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:231: UserWarning: [33mWARN: Box low's precision lowered by casting to float32, current low.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:297: UserWarning: [33mWARN: Box high's precision lowered by casting to float32, current high.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:231: UserWarning: [33mWARN: Box low's precision lowered by casting to float32, current low.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:297: UserWarning: [33mWARN: Box high's precision lowered by casting to float32, current high.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:231: UserWarning: [33mWARN: Box low's precision lowered by casting to float32, current low.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:297: UserWarning: [33mWARN: Box high's precision lowered by casting to float32, current high.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:231: UserWarning: [33mWARN: Box low's precision lowered by casting to float32, current low.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:297: UserWarning: [33mWARN: Box high's precision lowered by casting to float32, current high.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:231: UserWarning: [33mWARN: Box low's precision lowered by casting to float32, current low.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:297: UserWarning: [33mWARN: Box high's precision lowered by casting to float32, current high.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:231: UserWarning: [33mWARN: Box low's precision lowered by casting to float32, current low.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:297: UserWarning: [33mWARN: Box high's precision lowered by casting to float32, current high.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:231: UserWarning: [33mWARN: Box low's precision lowered by casting to float32, current low.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:297: UserWarning: [33mWARN: Box high's precision lowered by casting to float32, current high.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:231: UserWarning: [33mWARN: Box low's precision lowered by casting to float32, current low.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:297: UserWarning: [33mWARN: Box high's precision lowered by casting to float32, current high.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:231: UserWarning: [33mWARN: Box low's precision lowered by casting to float32, current low.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:297: UserWarning: [33mWARN: Box high's precision lowered by casting to float32, current high.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:231: UserWarning: [33mWARN: Box low's precision lowered by casting to float32, current low.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:297: UserWarning: [33mWARN: Box high's precision lowered by casting to float32, current high.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:231: UserWarning: [33mWARN: Box low's precision lowered by casting to float32, current low.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:297: UserWarning: [33mWARN: Box high's precision lowered by casting to float32, current high.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:231: UserWarning: [33mWARN: Box low's precision lowered by casting to float32, current low.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:297: UserWarning: [33mWARN: Box high's precision lowered by casting to float32, current high.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:231: UserWarning: [33mWARN: Box low's precision lowered by casting to float32, current low.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:297: UserWarning: [33mWARN: Box high's precision lowered by casting to float32, current high.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:231: UserWarning: [33mWARN: Box low's precision lowered by casting to float32, current low.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:297: UserWarning: [33mWARN: Box high's precision lowered by casting to float32, current high.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:231: UserWarning: [33mWARN: Box low's precision lowered by casting to float32, current low.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:297: UserWarning: [33mWARN: Box high's precision lowered by casting to float32, current high.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:231: UserWarning: [33mWARN: Box low's precision lowered by casting to float32, current low.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:297: UserWarning: [33mWARN: Box high's precision lowered by casting to float32, current high.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:231: UserWarning: [33mWARN: Box low's precision lowered by casting to float32, current low.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:297: UserWarning: [33mWARN: Box high's precision lowered by casting to float32, current high.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:231: UserWarning: [33mWARN: Box low's precision lowered by casting to float32, current low.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:297: UserWarning: [33mWARN: Box high's precision lowered by casting to float32, current high.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:231: UserWarning: [33mWARN: Box low's precision lowered by casting to float32, current low.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:297: UserWarning: [33mWARN: Box high's precision lowered by casting to float32, current high.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:231: UserWarning: [33mWARN: Box low's precision lowered by casting to float32, current low.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:297: UserWarning: [33mWARN: Box high's precision lowered by casting to float32, current high.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:231: UserWarning: [33mWARN: Box low's precision lowered by casting to float32, current low.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:297: UserWarning: [33mWARN: Box high's precision lowered by casting to float32, current high.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:231: UserWarning: [33mWARN: Box low's precision lowered by casting to float32, current low.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:297: UserWarning: [33mWARN: Box high's precision lowered by casting to float32, current high.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:231: UserWarning: [33mWARN: Box low's precision lowered by casting to float32, current low.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:297: UserWarning: [33mWARN: Box high's precision lowered by casting to float32, current high.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:231: UserWarning: [33mWARN: Box low's precision lowered by casting to float32, current low.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:297: UserWarning: [33mWARN: Box high's precision lowered by casting to float32, current high.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:231: UserWarning: [33mWARN: Box low's precision lowered by casting to float32, current low.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:297: UserWarning: [33mWARN: Box high's precision lowered by casting to float32, current high.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:231: UserWarning: [33mWARN: Box low's precision lowered by casting to float32, current low.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:297: UserWarning: [33mWARN: Box high's precision lowered by casting to float32, current high.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:231: UserWarning: [33mWARN: Box low's precision lowered by casting to float32, current low.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:297: UserWarning: [33mWARN: Box high's precision lowered by casting to float32, current high.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:231: UserWarning: [33mWARN: Box low's precision lowered by casting to float32, current low.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:297: UserWarning: [33mWARN: Box high's precision lowered by casting to float32, current high.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:231: UserWarning: [33mWARN: Box low's precision lowered by casting to float32, current low.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:297: UserWarning: [33mWARN: Box high's precision lowered by casting to float32, current high.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:231: UserWarning: [33mWARN: Box low's precision lowered by casting to float32, current low.dtype=float64[0m
+  gym.logger.warn(
+/Users/shyamamin/Desktop/DRL for IRP Optimisation/.venv-bn/lib/python3.12/site-packages/gymnasium/spaces/box.py:297: UserWarning: [33mWARN: Box high's precision lowered by casting to float32, current high.dtype=float64[0m
+  gym.logger.warn(
+Sales-loss cost: DISABLED (no lost-sales term in the reward at all, matching Archetti et al. (2007)'s objective). IRPEnv enforces the same hard no-stockout feasibility constraint Archetti's model relies on instead (auto-topping up delivery to cover demand, subject to real supply/capacity limits). Pass --product-price/--penalty-factor or --sales-loss-cost soft to cost lost sales instead.
+Loaded 96 training instance(s): 96 files, e.g. ['abs1n10.dat', 'abs1n15.dat', 'abs1n20.dat'] ... abs3n5.dat
+Loaded 32 held-out evaluation instance(s): 32 files, e.g. ['abs5n10.dat', 'abs5n15.dat', 'abs5n20.dat'] ... abs5n5.dat
+Loaded 32 validation instance(s) for checkpoint selection: 32 files, e.g. ['abs4n10.dat', 'abs4n15.dat', 'abs4n20.dat'] ... abs4n5.dat
+Logging results to /Users/shyamamin/Desktop/DRL for IRP Optimisation/src/results/seed0_20261007_130952
+[epoch    10] mean r_inv=  -3303.51  mean r_vrp= -22601.81  policy_inv=-0.0049  policy_vrp=1.5828  value_mse=7.8286  V_ev=0.553  adv_bias=-0.424  entropy=0.6440
+[epoch    20] mean r_inv=  -3305.13  mean r_vrp= -21723.21  policy_inv=-0.0010  policy_vrp=1.4474  value_mse=3.8965  V_ev=0.805  adv_bias=-0.165  entropy=0.2888
+  [eval @ epoch    25] 32 instances  mean inv_cost=  4153.13  mean vrp_dist= 9401.69  mean fill_rate=100.00%  mean total_cost= 13554.82
+        routing: visits/period= 23.8  excess= 1.18x  nn_rank=0.093  logit_sd= 0.405  fill= 0.55  cost if 2-opt routed= 12138.01
+        val: mean total_cost= 13292.50  <- new best, saved mtppo_best.pt
+  saved checkpoint -> /Users/shyamamin/Desktop/DRL for IRP Optimisation/src/results/seed0_20261007_130952/checkpoints/mtppo_epoch25.pt
+[epoch    30] mean r_inv=  -3299.82  mean r_vrp= -19452.58  policy_inv=-0.0016  policy_vrp=1.1977  value_mse=3.7021  V_ev=0.825  adv_bias=+0.771  entropy=0.1301
+[epoch    40] mean r_inv=  -3300.05  mean r_vrp= -18493.41  policy_inv=-0.0001  policy_vrp=1.0717  value_mse=2.8951  V_ev=0.856  adv_bias=-0.455  entropy=0.2857
+[epoch    50] mean r_inv=  -3296.95  mean r_vrp= -16841.84  policy_inv=-0.0023  policy_vrp=0.8831  value_mse=2.7980  V_ev=0.863  adv_bias=-0.558  entropy=0.2205
+  [eval @ epoch    50] 32 instances  mean inv_cost=  4144.48  mean vrp_dist= 9674.25  mean fill_rate=100.00%  mean total_cost= 13818.73
+        routing: visits/period= 23.8  excess= 1.21x  nn_rank=0.097  logit_sd= 0.858  fill= 0.51  cost if 2-opt routed= 12129.36
+        val: mean total_cost= 13356.97  (best  13292.50 @ epoch 25)
+  saved checkpoint -> /Users/shyamamin/Desktop/DRL for IRP Optimisation/src/results/seed0_20261007_130952/checkpoints/mtppo_epoch50.pt
+[epoch    60] mean r_inv=  -3301.23  mean r_vrp= -15810.73  policy_inv=-0.0006  policy_vrp=0.7574  value_mse=2.5902  V_ev=0.881  adv_bias=+0.561  entropy=0.1676
+[epoch    70] mean r_inv=  -3305.14  mean r_vrp= -14514.74  policy_inv=-0.0050  policy_vrp=0.6168  value_mse=2.3547  V_ev=0.879  adv_bias=-0.459  entropy=0.4146
+  [eval @ epoch    75] 32 instances  mean inv_cost=  4142.94  mean vrp_dist= 9121.00  mean fill_rate=100.00%  mean total_cost= 13263.94
+        routing: visits/period= 23.8  excess= 1.14x  nn_rank=0.065  logit_sd= 1.228  fill= 0.51  cost if 2-opt routed= 12127.82
+        val: mean total_cost= 13089.01  <- new best, saved mtppo_best.pt
+  saved checkpoint -> /Users/shyamamin/Desktop/DRL for IRP Optimisation/src/results/seed0_20261007_130952/checkpoints/mtppo_epoch75.pt
+[epoch    80] mean r_inv=  -3303.69  mean r_vrp= -13432.73  policy_inv=-0.0018  policy_vrp=0.4961  value_mse=2.4386  V_ev=0.885  adv_bias=-0.599  entropy=0.2078
+[epoch    90] mean r_inv=  -3302.66  mean r_vrp= -14573.12  policy_inv=-0.0058  policy_vrp=0.6650  value_mse=2.2162  V_ev=0.890  adv_bias=+0.611  entropy=0.1938
+[epoch   100] mean r_inv=  -3298.30  mean r_vrp= -14511.95  policy_inv=-0.0014  policy_vrp=0.6474  value_mse=2.2738  V_ev=0.883  adv_bias=-0.432  entropy=0.1993
+  [eval @ epoch   100] 32 instances  mean inv_cost=  4131.32  mean vrp_dist= 8759.88  mean fill_rate=100.00%  mean total_cost= 12891.20
+        routing: visits/period= 23.8  excess= 1.10x  nn_rank=0.075  logit_sd= 1.018  fill= 0.45  cost if 2-opt routed= 12116.20
+        val: mean total_cost= 12893.28  <- new best, saved mtppo_best.pt
+  saved checkpoint -> /Users/shyamamin/Desktop/DRL for IRP Optimisation/src/results/seed0_20261007_130952/checkpoints/mtppo_epoch100.pt
+[epoch   110] mean r_inv=  -3298.28  mean r_vrp= -12598.45  policy_inv=0.0005  policy_vrp=0.4128  value_mse=2.0394  V_ev=0.898  adv_bias=-0.440  entropy=-0.0661
+[epoch   120] mean r_inv=  -3299.36  mean r_vrp= -10485.22  policy_inv=-0.0000  policy_vrp=0.1560  value_mse=2.0970  V_ev=0.892  adv_bias=+0.406  entropy=-1.0636
+  [eval @ epoch   125] 32 instances  mean inv_cost=  4122.49  mean vrp_dist= 8699.00  mean fill_rate=100.00%  mean total_cost= 12821.49
+        routing: visits/period= 23.8  excess= 1.09x  nn_rank=0.057  logit_sd= 3.560  fill= 0.41  cost if 2-opt routed= 12107.36
+        val: mean total_cost= 13026.77  (best  12893.28 @ epoch 100)
+  saved checkpoint -> /Users/shyamamin/Desktop/DRL for IRP Optimisation/src/results/seed0_20261007_130952/checkpoints/mtppo_epoch125.pt
+[epoch   130] mean r_inv=  -3299.95  mean r_vrp=  -9624.49  policy_inv=-0.0010  policy_vrp=0.0688  value_mse=1.9665  V_ev=0.898  adv_bias=-0.289  entropy=-1.8916
+[epoch   140] mean r_inv=  -3297.98  mean r_vrp=  -9465.68  policy_inv=-0.0030  policy_vrp=0.0591  value_mse=2.2178  V_ev=0.865  adv_bias=+0.113  entropy=-3.3823
+[epoch   150] mean r_inv=  -3299.45  mean r_vrp=  -9565.00  policy_inv=-0.0024  policy_vrp=0.0900  value_mse=1.9518  V_ev=0.896  adv_bias=-0.138  entropy=-4.0434
+  [eval @ epoch   150] 32 instances  mean inv_cost=  4109.44  mean vrp_dist= 8587.31  mean fill_rate=100.00%  mean total_cost= 12696.75
+        routing: visits/period= 23.8  excess= 1.08x  nn_rank=0.090  logit_sd= 4.577  fill= 0.35  cost if 2-opt routed= 12094.31
+        val: mean total_cost= 12999.32  (best  12893.28 @ epoch 100)
+  saved checkpoint -> /Users/shyamamin/Desktop/DRL for IRP Optimisation/src/results/seed0_20261007_130952/checkpoints/mtppo_epoch150.pt
+[epoch   160] mean r_inv=  -3297.99  mean r_vrp=  -9419.14  policy_inv=0.0027  policy_vrp=0.1075  value_mse=1.8376  V_ev=0.905  adv_bias=-0.410  entropy=-4.9524
+[epoch   170] mean r_inv=  -3300.49  mean r_vrp=  -9003.05  policy_inv=-0.0044  policy_vrp=0.0961  value_mse=1.7026  V_ev=0.903  adv_bias=+0.332  entropy=-6.4941
+  [eval @ epoch   175] 32 instances  mean inv_cost=  4106.78  mean vrp_dist= 6540.12  mean fill_rate=100.00%  mean total_cost= 10646.90
+        routing: visits/period= 23.8  excess= 1.11x  nn_rank=0.057  logit_sd= 4.243  fill= 0.32  cost if 2-opt routed= 10088.78
+        val: mean total_cost= 10593.50  <- new best, saved mtppo_best.pt
+  saved checkpoint -> /Users/shyamamin/Desktop/DRL for IRP Optimisation/src/results/seed0_20261007_130952/checkpoints/mtppo_epoch175.pt
+[epoch   180] mean r_inv=  -3297.33  mean r_vrp=  -8201.96  policy_inv=-0.0070  policy_vrp=0.0612  value_mse=1.5361  V_ev=0.907  adv_bias=-0.249  entropy=-8.3757
+[epoch   190] mean r_inv=  -3297.36  mean r_vrp=  -7526.03  policy_inv=-0.0039  policy_vrp=0.0751  value_mse=1.3806  V_ev=0.903  adv_bias=-0.366  entropy=-10.6014
+[epoch   200] mean r_inv=  -3299.62  mean r_vrp=  -7305.61  policy_inv=0.0008  policy_vrp=0.0817  value_mse=1.2036  V_ev=0.913  adv_bias=+0.555  entropy=-11.8556
+  [eval @ epoch   200] 32 instances  mean inv_cost=  4107.54  mean vrp_dist= 6203.19  mean fill_rate=100.00%  mean total_cost= 10310.73
+        routing: visits/period= 21.6  excess= 1.10x  nn_rank=0.053  logit_sd= 4.491  fill= 0.31  cost if 2-opt routed=  9760.92
+        val: mean total_cost= 10387.45  <- new best, saved mtppo_best.pt
+  saved checkpoint -> /Users/shyamamin/Desktop/DRL for IRP Optimisation/src/results/seed0_20261007_130952/checkpoints/mtppo_epoch200.pt
+[epoch   210] mean r_inv=  -3299.95  mean r_vrp=  -7161.79  policy_inv=-0.0020  policy_vrp=0.0932  value_mse=1.1193  V_ev=0.918  adv_bias=-0.189  entropy=-13.1317
+[epoch   220] mean r_inv=  -3299.16  mean r_vrp=  -7093.88  policy_inv=-0.0059  policy_vrp=0.1100  value_mse=0.9322  V_ev=0.928  adv_bias=-0.228  entropy=-14.0497
+  [eval @ epoch   225] 32 instances  mean inv_cost=  4107.90  mean vrp_dist= 5805.50  mean fill_rate=100.00%  mean total_cost=  9913.40
+        routing: visits/period= 18.9  excess= 1.06x  nn_rank=0.082  logit_sd= 4.282  fill= 0.31  cost if 2-opt routed=  9532.02
+        val: mean total_cost= 10121.60  <- new best, saved mtppo_best.pt
+  saved checkpoint -> /Users/shyamamin/Desktop/DRL for IRP Optimisation/src/results/seed0_20261007_130952/checkpoints/mtppo_epoch225.pt
+[epoch   230] mean r_inv=  -3297.69  mean r_vrp=  -7184.47  policy_inv=-0.0005  policy_vrp=0.1604  value_mse=0.9393  V_ev=0.934  adv_bias=+0.491  entropy=-15.0180
+[epoch   240] mean r_inv=  -3298.31  mean r_vrp=  -7024.88  policy_inv=-0.0000  policy_vrp=0.1335  value_mse=0.8981  V_ev=0.933  adv_bias=-0.238  entropy=-15.1224
+[epoch   250] mean r_inv=  -3298.70  mean r_vrp=  -6563.49  policy_inv=-0.0030  policy_vrp=0.0559  value_mse=0.8032  V_ev=0.938  adv_bias=-0.351  entropy=-16.1493
+  [eval @ epoch   250] 32 instances  mean inv_cost=  4110.38  mean vrp_dist= 5377.00  mean fill_rate=100.00%  mean total_cost=  9487.38
+        routing: visits/period= 17.6  excess= 1.07x  nn_rank=0.083  logit_sd= 4.134  fill= 0.31  cost if 2-opt routed=  9127.63
+        val: mean total_cost=  9756.54  <- new best, saved mtppo_best.pt
+  saved checkpoint -> /Users/shyamamin/Desktop/DRL for IRP Optimisation/src/results/seed0_20261007_130952/checkpoints/mtppo_epoch250.pt
+[epoch   260] mean r_inv=  -3298.50  mean r_vrp=  -6617.80  policy_inv=-0.0058  policy_vrp=0.0777  value_mse=0.8353  V_ev=0.945  adv_bias=+0.027  entropy=-17.2011
+[epoch   270] mean r_inv=  -3299.86  mean r_vrp=  -6333.49  policy_inv=0.0013  policy_vrp=0.0356  value_mse=0.8542  V_ev=0.927  adv_bias=-0.125  entropy=-18.4156
+  [eval @ epoch   275] 32 instances  mean inv_cost=  4114.93  mean vrp_dist= 5370.69  mean fill_rate=100.00%  mean total_cost=  9485.62
+        routing: visits/period= 17.6  excess= 1.07x  nn_rank=0.069  logit_sd= 3.921  fill= 0.32  cost if 2-opt routed=  9132.18
+        val: mean total_cost=  9768.36  (best   9756.54 @ epoch 250)
+  saved checkpoint -> /Users/shyamamin/Desktop/DRL for IRP Optimisation/src/results/seed0_20261007_130952/checkpoints/mtppo_epoch275.pt
+[epoch   280] mean r_inv=  -3300.32  mean r_vrp=  -6248.10  policy_inv=-0.0048  policy_vrp=0.0277  value_mse=0.5842  V_ev=0.949  adv_bias=+0.101  entropy=-19.3197
+[epoch   290] mean r_inv=  -3298.13  mean r_vrp=  -6352.91  policy_inv=-0.0003  policy_vrp=0.0596  value_mse=0.8903  V_ev=0.932  adv_bias=-0.145  entropy=-21.0123
+[epoch   300] mean r_inv=  -3298.98  mean r_vrp=  -6540.57  policy_inv=-0.0007  policy_vrp=0.0926  value_mse=0.6791  V_ev=0.929  adv_bias=+0.008  entropy=-19.7282
+  [eval @ epoch   300] 32 instances  mean inv_cost=  4118.65  mean vrp_dist= 5431.31  mean fill_rate=100.00%  mean total_cost=  9549.97
+        routing: visits/period= 17.6  excess= 1.08x  nn_rank=0.080  logit_sd= 4.813  fill= 0.33  cost if 2-opt routed=  9135.90
+        val: mean total_cost=  9766.11  (best   9756.54 @ epoch 250)
+  saved checkpoint -> /Users/shyamamin/Desktop/DRL for IRP Optimisation/src/results/seed0_20261007_130952/checkpoints/mtppo_epoch300.pt
+[epoch   310] mean r_inv=  -3300.93  mean r_vrp=  -6235.25  policy_inv=0.0022  policy_vrp=0.0485  value_mse=0.5137  V_ev=0.957  adv_bias=-0.061  entropy=-20.2775
+[epoch   320] mean r_inv=  -3298.45  mean r_vrp=  -6154.30  policy_inv=-0.0117  policy_vrp=0.0295  value_mse=0.9261  V_ev=0.908  adv_bias=-0.475  entropy=-20.7211
+  [eval @ epoch   325] 32 instances  mean inv_cost=  4123.67  mean vrp_dist= 5374.81  mean fill_rate=100.00%  mean total_cost=  9498.49
+        routing: visits/period= 17.6  excess= 1.07x  nn_rank=0.074  logit_sd= 4.374  fill= 0.33  cost if 2-opt routed=  9140.92
+        val: mean total_cost=  9721.67  <- new best, saved mtppo_best.pt
+  saved checkpoint -> /Users/shyamamin/Desktop/DRL for IRP Optimisation/src/results/seed0_20261007_130952/checkpoints/mtppo_epoch325.pt
+[epoch   330] mean r_inv=  -3300.21  mean r_vrp=  -6098.23  policy_inv=-0.0031  policy_vrp=0.0260  value_mse=0.4921  V_ev=0.959  adv_bias=-0.220  entropy=-22.1570
+[epoch   340] mean r_inv=  -3301.97  mean r_vrp=  -6111.68  policy_inv=-0.0019  policy_vrp=0.0339  value_mse=0.5585  V_ev=0.957  adv_bias=+0.080  entropy=-22.9519
+[epoch   350] mean r_inv=  -3298.63  mean r_vrp=  -6064.86  policy_inv=-0.0039  policy_vrp=0.0223  value_mse=0.8685  V_ev=0.952  adv_bias=+0.410  entropy=-23.2346
+  [eval @ epoch   350] 32 instances  mean inv_cost=  4126.13  mean vrp_dist= 5427.56  mean fill_rate=100.00%  mean total_cost=  9553.69
+        routing: visits/period= 17.6  excess= 1.08x  nn_rank=0.070  logit_sd= 4.407  fill= 0.34  cost if 2-opt routed=  9143.38
+        val: mean total_cost=  9791.51  (best   9721.67 @ epoch 325)
+  saved checkpoint -> /Users/shyamamin/Desktop/DRL for IRP Optimisation/src/results/seed0_20261007_130952/checkpoints/mtppo_epoch350.pt
+[epoch   360] mean r_inv=  -3299.62  mean r_vrp=  -6115.28  policy_inv=-0.0002  policy_vrp=0.0307  value_mse=0.5977  V_ev=0.954  adv_bias=+0.437  entropy=-23.0495
+[epoch   370] mean r_inv=  -3299.43  mean r_vrp=  -6098.40  policy_inv=-0.0004  policy_vrp=0.0347  value_mse=0.4650  V_ev=0.962  adv_bias=-0.035  entropy=-22.9833
+  [eval @ epoch   375] 32 instances  mean inv_cost=  4126.79  mean vrp_dist= 5299.44  mean fill_rate=100.00%  mean total_cost=  9426.22
+        routing: visits/period= 17.6  excess= 1.05x  nn_rank=0.085  logit_sd= 4.773  fill= 0.34  cost if 2-opt routed=  9144.04
+        val: mean total_cost=  9808.34  (best   9721.67 @ epoch 325)
+  saved checkpoint -> /Users/shyamamin/Desktop/DRL for IRP Optimisation/src/results/seed0_20261007_130952/checkpoints/mtppo_epoch375.pt
+[epoch   380] mean r_inv=  -3300.15  mean r_vrp=  -6077.68  policy_inv=0.0019  policy_vrp=0.0354  value_mse=0.3794  V_ev=0.968  adv_bias=-0.116  entropy=-23.3527
+[epoch   390] mean r_inv=  -3300.09  mean r_vrp=  -6289.46  policy_inv=-0.0076  policy_vrp=0.0863  value_mse=0.3710  V_ev=0.966  adv_bias=-0.121  entropy=-24.3262
+[epoch   400] mean r_inv=  -3298.56  mean r_vrp=  -7133.58  policy_inv=-0.0015  policy_vrp=0.2623  value_mse=0.3800  V_ev=0.969  adv_bias=-0.213  entropy=-23.7823
+  [eval @ epoch   400] 32 instances  mean inv_cost=  4128.36  mean vrp_dist= 5303.25  mean fill_rate=100.00%  mean total_cost=  9431.61
+        routing: visits/period= 17.6  excess= 1.05x  nn_rank=0.092  logit_sd= 4.339  fill= 0.34  cost if 2-opt routed=  9145.61
+        val: mean total_cost=  9903.63  (best   9721.67 @ epoch 325)
+  saved checkpoint -> /Users/shyamamin/Desktop/DRL for IRP Optimisation/src/results/seed0_20261007_130952/checkpoints/mtppo_epoch400.pt
+[epoch   410] mean r_inv=  -3299.31  mean r_vrp=  -8429.44  policy_inv=-0.0071  policy_vrp=0.5283  value_mse=0.3866  V_ev=0.971  adv_bias=-0.120  entropy=-24.1322
+[epoch   420] mean r_inv=  -3300.80  mean r_vrp=  -9487.56  policy_inv=0.0028  policy_vrp=0.7213  value_mse=0.3998  V_ev=0.971  adv_bias=-0.161  entropy=-26.2300
+  [eval @ epoch   425] 32 instances  mean inv_cost=  4130.78  mean vrp_dist= 5589.69  mean fill_rate=100.00%  mean total_cost=  9720.47
+        routing: visits/period= 17.6  excess= 1.11x  nn_rank=0.066  logit_sd= 0.609  fill= 0.35  cost if 2-opt routed=  9148.03
+        val: mean total_cost= 10209.42  (best   9721.67 @ epoch 325)
+  saved checkpoint -> /Users/shyamamin/Desktop/DRL for IRP Optimisation/src/results/seed0_20261007_130952/checkpoints/mtppo_epoch425.pt
+[epoch   430] mean r_inv=  -3299.66  mean r_vrp= -10100.30  policy_inv=-0.0002  policy_vrp=0.8308  value_mse=0.4354  V_ev=0.968  adv_bias=-0.002  entropy=-24.2181
+[epoch   440] mean r_inv=  -3299.08  mean r_vrp= -10500.45  policy_inv=-0.0002  policy_vrp=0.9129  value_mse=0.4270  V_ev=0.969  adv_bias=-0.112  entropy=-24.0149
+[epoch   450] mean r_inv=  -3300.12  mean r_vrp= -10312.44  policy_inv=-0.0016  policy_vrp=0.8772  value_mse=0.5404  V_ev=0.962  adv_bias=+0.205  entropy=-24.1291
+  [eval @ epoch   450] 32 instances  mean inv_cost=  4132.98  mean vrp_dist= 5555.38  mean fill_rate=100.00%  mean total_cost=  9688.36
+        routing: visits/period= 17.6  excess= 1.10x  nn_rank=0.106  logit_sd= 0.529  fill= 0.35  cost if 2-opt routed=  9150.23
+        val: mean total_cost=  9915.33  (best   9721.67 @ epoch 325)
+  saved checkpoint -> /Users/shyamamin/Desktop/DRL for IRP Optimisation/src/results/seed0_20261007_130952/checkpoints/mtppo_epoch450.pt
+[epoch   460] mean r_inv=  -3300.76  mean r_vrp= -10334.11  policy_inv=0.0014  policy_vrp=0.8923  value_mse=0.5509  V_ev=0.970  adv_bias=-0.392  entropy=-24.0876
+[epoch   470] mean r_inv=  -3299.03  mean r_vrp= -10483.34  policy_inv=0.0023  policy_vrp=0.9237  value_mse=0.3916  V_ev=0.971  adv_bias=-0.227  entropy=-24.6653
+  [eval @ epoch   475] 32 instances  mean inv_cost=  4137.70  mean vrp_dist= 5651.56  mean fill_rate=100.00%  mean total_cost=  9789.26
+        routing: visits/period= 17.6  excess= 1.12x  nn_rank=0.128  logit_sd= 0.568  fill= 0.37  cost if 2-opt routed=  9154.95
+        val: mean total_cost= 10135.71  (best   9721.67 @ epoch 325)
+  saved checkpoint -> /Users/shyamamin/Desktop/DRL for IRP Optimisation/src/results/seed0_20261007_130952/checkpoints/mtppo_epoch475.pt
+[epoch   480] mean r_inv=  -3299.99  mean r_vrp=  -9528.74  policy_inv=0.0225  policy_vrp=0.7420  value_mse=0.6896  V_ev=0.956  adv_bias=+0.280  entropy=-25.5233
+[epoch   490] mean r_inv=  -3300.14  mean r_vrp=  -8954.98  policy_inv=0.0177  policy_vrp=0.6202  value_mse=0.3651  V_ev=0.969  adv_bias=-0.140  entropy=-25.1225
+[epoch   500] mean r_inv=  -3299.79  mean r_vrp=  -8426.54  policy_inv=0.0206  policy_vrp=0.5142  value_mse=0.4287  V_ev=0.965  adv_bias=-0.184  entropy=-25.3340
+  [eval @ epoch   500] 32 instances  mean inv_cost=  4134.98  mean vrp_dist= 5601.44  mean fill_rate=100.00%  mean total_cost=  9736.41
+        routing: visits/period= 17.6  excess= 1.10x  nn_rank=0.106  logit_sd= 1.091  fill= 0.35  cost if 2-opt routed=  9152.23
+        val: mean total_cost= 10035.75  (best   9721.67 @ epoch 325)
+  saved checkpoint -> /Users/shyamamin/Desktop/DRL for IRP Optimisation/src/results/seed0_20261007_130952/checkpoints/mtppo_epoch500.pt
+Training complete. Final checkpoint -> /Users/shyamamin/Desktop/DRL for IRP Optimisation/src/results/seed0_20261007_130952/checkpoints/mtppo_final.pt
+Best checkpoint by validation cost: epoch 325 (mean total_cost=9721.67) -> /Users/shyamamin/Desktop/DRL for IRP Optimisation/src/results/seed0_20261007_130952/checkpoints/mtppo_best.pt
+Validation history -> /Users/shyamamin/Desktop/DRL for IRP Optimisation/src/results/seed0_20261007_130952/val.csv
+Metrics -> /Users/shyamamin/Desktop/DRL for IRP Optimisation/src/results/seed0_20261007_130952/metrics.csv
+Eval history -> /Users/shyamamin/Desktop/DRL for IRP Optimisation/src/results/seed0_20261007_130952/eval.csv
