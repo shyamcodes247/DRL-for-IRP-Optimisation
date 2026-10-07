@@ -3,6 +3,8 @@ import pytest
 import torch
 
 from agent.inventory_actor import InventoryActor
+from conftest import TEST_INSTANCE_PATHS
+from environment.irp_env import IRPEnv
 from training.mtppo import MTPPO
 
 LOC_DIM, LOOKBACK = 2, 3
@@ -174,3 +176,56 @@ def test_tours_always_close_when_rationing_hits_the_capacity_cap():
                     f"trial {trial}: tour did not close after {hops} hops "
                     f"for {env.num_retailers} retailers"
                 )
+
+
+def test_initial_holding_cost_charges_both_echelons():
+    """
+    Archetti et al. (2007) sum holding cost from t=0, so the given opening
+    stock is charged at the supplier AND at every retailer. Charging only the
+    depot half was the original omission; this pins both.
+    """
+    env = IRPEnv(TEST_INSTANCE_PATHS[0], loc_dim=2, lookback_window=3,
+                 product_price=None, penalty_factor=None)
+    expected_depot = env.depot_holding_cost * env.depot_initial_inventory
+    expected_retail = np.sum(env.holding_cost * env.retailers_initial_inventory)
+
+    assert env.initial_depot_holding_cost == pytest.approx(expected_depot)
+    assert env.initial_retailer_holding_cost == pytest.approx(expected_retail)
+    assert env.initial_holding_cost == pytest.approx(expected_depot + expected_retail)
+    # The retailer half is not negligible, so an implementation that forgot it
+    # would still look plausible without this assertion.
+    assert env.initial_retailer_holding_cost > 0.0
+
+
+def test_initial_holding_cost_is_constant_under_every_policy():
+    """
+    The whole argument for not retraining after adding this term is that it is
+    decision-independent. If any action could move it, it would belong in the
+    reward and every checkpoint would need redoing -- so it is worth asserting
+    rather than assuming.
+    """
+    for fraction in (0.0, 0.5, 1.0):
+        env = IRPEnv(TEST_INSTANCE_PATHS[0], loc_dim=2, lookback_window=3,
+                     product_price=None, penalty_factor=None)
+        env.reset()
+        before = env.initial_holding_cost
+        terminated = False
+        while not terminated:
+            headroom = np.maximum(env.retailer_max_capacity - env.retailers_current_inventory, 0.0)
+            env.inventory_action_step(fraction * headroom)
+            while True:
+                eligible = np.flatnonzero(env.visited_mask == 0)
+                _, _, critic_obs, terminated, _, _ = env.routing_action_step(int(eligible[0]))
+                if critic_obs is not None:
+                    break
+        assert env.initial_holding_cost == before
+
+
+def test_initial_holding_cost_can_be_turned_off():
+    """`--no-initial-holding` has to reproduce the older accounting exactly."""
+    env = IRPEnv(TEST_INSTANCE_PATHS[0], loc_dim=2, lookback_window=3,
+                 product_price=None, penalty_factor=None,
+                 charge_initial_holding=False)
+    assert env.initial_holding_cost == 0.0
+    # The breakdown is still computed, so it can be reported either way.
+    assert env.initial_depot_holding_cost > 0.0

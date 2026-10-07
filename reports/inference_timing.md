@@ -28,6 +28,13 @@ lost by preferring it, but the distinction matters when reading the numbers:
 the costs below do **not** match the figures the training runs printed for
 their own best checkpoints.
 
+The reported objective includes holding cost on the period-0 opening stock at
+both echelons (`h_0 * B_0 + sum_i h_i * I_i^0`), which Archetti et al. (2007)
+charge because their holding-cost sum runs from t=0. It was missing until
+2026-10-07 and is worth a mean of 869 per instance here, 8.6% of total cost, so
+any figure quoted from an earlier version of this file is understated by about
+that much. See "Period-0 holding cost" below.
+
 Timing is the median of 20 greedy rollouts per instance after one discarded
 warm-up pass, single-threaded, excluding model load (156 ms, once per process)
 and instance parsing (1.3 ms per instance).
@@ -116,9 +123,9 @@ record, mean total cost per instance on the held-out set:
 
 | seed | gap-selected | cost-selected (`mtppo_best.pt`) |
 |---|---|---|
-| 0 | epoch 400 → **8,827** | epoch 475 → 8,862 |
-| 1 | epoch 450 → **9,159** | epoch 400 → 9,281 |
-| 2 | epoch 375 → 8,994 | epoch 375 → 8,994 (same checkpoint) |
+| 0 | epoch 400 → **9,696** | epoch 475 → 9,731 |
+| 1 | epoch 450 → **10,028** | epoch 400 → 10,150 |
+| 2 | epoch 375 → 9,863 | epoch 375 → 9,863 (same checkpoint) |
 
 On both seeds where the criteria disagree, the gap-selected checkpoint is
 *cheaper* on the held-out set than the one chosen by validation cost. With two
@@ -150,8 +157,48 @@ These must travel with the numbers.
    forbids stockouts by constraint). Quoting a percentage gap would require
    both their published objectives and a reconciled objective function. The
    validation gap used to select these checkpoints was computed outside this
-   repository and cannot be reproduced from the logged data alone.
+   repository and cannot be reproduced from the logged data alone -- and was
+   computed before the period-0 term was added, so it understated the true gap
+   (though not in a way that changes which checkpoint it selects; see below).
 5. **The published CPU times are transcribed by hand** from the paper into
    `data/benchmarks/archetti2007_vmir_ou_times.csv`, which is not otherwise
    checkable from inside this repository. Spot-check them against Table I
    before quoting any figure here.
+
+## Period-0 holding cost
+
+Added 2026-10-07, after re-reading the paper. Archetti et al. (2007) sum
+holding cost from t=0, which charges the opening stock given in the instance
+file as well as every level the policy goes on to produce. The environment was
+charging only t=1..H, so the reported objective was short by
+
+    h_0 * B_0  +  sum_i h_i * I_i^0
+
+worth a mean of 869 per instance on the evaluation set: 5.1% of total cost from
+the depot half and 3.5% from the retailer half, 8.6% together. It is largest in
+relative terms on the short-horizon high-cost instances (21% on highcost H3
+n=50) and smallest on the long-horizon low-cost ones (1.0% on lowcost H6 n=15),
+because a longer horizon gives the decision-dependent part of the objective more
+periods to accumulate while this term stays fixed.
+
+**No retraining was needed, and no checkpoint was reselected.** Every factor in
+the expression comes from the instance file, so the term is a per-instance
+constant that no action can move -- asserted directly in
+`test_initial_holding_cost_is_constant_under_every_policy`, which drives three
+different delivery policies to the end of an episode and checks the value never
+budges. Three consequences follow:
+
+  - *The optimal policy is unchanged.* Adding a constant to an objective cannot
+    reorder the policies being compared.
+  - *The learning signal is unchanged.* The term is deliberately excluded from
+    `r_inv`, because adding a constant to the reward would shift the critic's
+    targets and disturb reward normalization while carrying no information. The
+    reported `inv_cost` therefore exceeds summed `r_inv` by exactly this
+    amount; the reward is a training signal and the cost is an accounting
+    figure, and they are not the same quantity.
+  - *Gap-based checkpoint selection is unchanged.* Mean gap over instances
+    becomes `mean(cost_i/opt_i) + mean(c_i/opt_i) - 1`, and the second term
+    does not depend on the checkpoint, so the argmin is exactly where it was.
+    Epochs 400/450/375 remain the selected checkpoints.
+
+Pass `--no-initial-holding` to reproduce the older accounting.

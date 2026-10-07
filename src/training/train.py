@@ -193,6 +193,7 @@ def build_envs(paths: List[str], args: argparse.Namespace) -> list:
             product_price=args.product_price,
             penalty_factor=args.penalty_factor,
             delivery_cost=args.delivery_cost,
+            charge_initial_holding=args.charge_initial_holding,
         )
         for path in paths
     ]
@@ -259,6 +260,17 @@ def parse_args() -> argparse.Namespace:
         "--train-manifest and --eval-manifest: selecting a checkpoint on the held-out "
         "evaluation set would stop that set being held out, and the reported number "
         "would be the best of N tries rather than an honest estimate.",
+    )
+
+    parser.add_argument(
+        "--no-initial-holding",
+        dest="charge_initial_holding",
+        action="store_false",
+        help="Do not charge holding cost on period-0 opening stock. Archetti et al. "
+        "(2007) include it (their holding-cost sum starts at t=0), so it is charged "
+        "by default; pass this only to reproduce figures from before it was "
+        "accounted for. It is a per-instance constant, so it shifts reported cost "
+        "without affecting what the policy learns.",
     )
 
     parser.add_argument("--loc-dim", type=int, default=2)

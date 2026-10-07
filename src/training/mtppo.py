@@ -467,7 +467,9 @@ class MTPPO:
                 episode-level means.
 
         Returns:
-            Dict with `inv_cost` (total holding + lost-sales cost),
+            Dict with `inv_cost` (period-0 opening-stock holding cost, plus
+            holding and lost-sales cost over the horizon -- so it exceeds the
+            summed `r_inv` by `env.initial_holding_cost`),
             `vrp_distance` (raw travel distance, undiscounted by
             `delivery_cost`), `routing_cost` (`vrp_distance * delivery_cost`,
             i.e. the paper's VRP.Dist*1k-style delivery cost term),
@@ -492,7 +494,11 @@ class MTPPO:
         retailer_scale, _depot_scale = self._quantity_scales(env)
         _, critic_obs, _ = env.reset()
 
-        total_inv_cost = 0.0
+        # Seeded with the period-0 opening-stock holding cost rather than 0.
+        # It is a per-instance constant (see `IRPEnv.initial_holding_cost`), so
+        # it never appears in `r_inv` and has to be added here for the reported
+        # objective to match the one Archetti et al. (2007) minimise.
+        total_inv_cost = float(env.initial_holding_cost)
         total_distance = 0.0
         total_lost_units = 0.0
         total_demand = 0.0

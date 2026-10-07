@@ -60,6 +60,7 @@ class IRPEnv(gym.Env):
         product_price: Optional[float] = None,
         penalty_factor: Optional[float] = None,
         delivery_cost: float = 1,
+        charge_initial_holding: bool = True,
     ) -> None:
         """
         Args:
@@ -82,6 +83,13 @@ class IRPEnv(gym.Env):
             delivery_cost: Cost per unit of travel distance. Scales the routing
                 reward; defaults to 1 so that the routing reward is the negated
                 raw tour distance.
+            charge_initial_holding: Whether to charge holding cost on the
+                period-0 opening stock at both echelons, which Archetti et al.
+                (2007) include in their objective (their holding-cost sum runs
+                from t=0, so it covers the given starting inventories as well
+                as every level the policy produces). Defaults to True; set
+                False only to reproduce figures produced before this term was
+                accounted for. See `initial_holding_cost` below.
 
         Attributes set from the instance file:
             episode_length: Number of timesteps per episode (planning horizon).
@@ -101,6 +109,21 @@ class IRPEnv(gym.Env):
                 used by the GIN layers for message passing. Assumes a fixed
                 topology (currently a complete graph) for the life of this
                 environment instance.
+            initial_holding_cost: Holding cost on the period-0 opening stock,
+                `h_0 * B_0 + sum_i h_i * I_i^0` (0.0 when
+                `charge_initial_holding` is False). Every factor comes from the
+                instance file, so this is a per-instance CONSTANT that no action
+                can change -- which is why it is deliberately NOT part of
+                `r_inv`: adding a constant to the learning signal cannot change
+                which policy is optimal, and would only shift the critic's
+                targets and disturb reward normalization for nothing. It belongs
+                to the reported objective instead, and `MTPPO.evaluate_episode`
+                adds it into `inv_cost`. The consequence to keep in mind is that
+                summed `r_inv` is therefore LOWER than reported `inv_cost` by
+                exactly this amount; the reward is a training signal, the cost
+                is an accounting figure, and they are not the same quantity.
+                `initial_depot_holding_cost` and
+                `initial_retailer_holding_cost` hold the two halves separately.
         """
         params, supplier, retailers = convert_instance(data_file_path).values()
         self.episode_length = params["episode_length"]
@@ -123,6 +146,20 @@ class IRPEnv(gym.Env):
         self.depot_initial_inventory = supplier["initial_inventory"]
         self.depot_production_rate = supplier["production_rate"]
         self.depot_holding_cost = supplier["holding_cost"]
+        # Period-0 opening stock, charged at both echelons (see
+        # `initial_holding_cost` in the docstring above). Computed once here
+        # rather than in `reset`, because nothing about it can change.
+        self.initial_depot_holding_cost = float(
+            self.depot_holding_cost * self.depot_initial_inventory
+        )
+        self.initial_retailer_holding_cost = float(
+            np.sum(self.holding_cost * self.retailers_initial_inventory)
+        )
+        self.charge_initial_holding = charge_initial_holding
+        self.initial_holding_cost = (
+            self.initial_depot_holding_cost + self.initial_retailer_holding_cost
+            if charge_initial_holding else 0.0
+        )
         self.loc_dim = loc_dim
         self.lookback_window = lookback_window
         self.adjacency_list = self._create_adjacency_list(self.num_retailers + 1)
