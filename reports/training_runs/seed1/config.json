@@ -1,0 +1,41 @@
+{
+  "instance": null,
+  "data_glob": "/Users/shyamamin/Desktop/DRL for IRP Optimisation/data/Instances_lowcost_H6/*.dat",
+  "data_root": "/Users/shyamamin/Desktop/DRL for IRP Optimisation/data",
+  "train_manifest": "data/splits/train_by_replicate.txt",
+  "eval_manifest": "data/splits/eval_by_replicate.txt",
+  "val_manifest": "data/splits/val_by_replicate.txt",
+  "charge_initial_holding": true,
+  "loc_dim": 2,
+  "lookback_window": 3,
+  "product_price": null,
+  "penalty_factor": null,
+  "sales_loss_cost": "auto",
+  "delivery_cost": 1.0,
+  "gin_dims": [
+    64,
+    128,
+    128
+  ],
+  "mlp_dims": [
+    128,
+    128
+  ],
+  "lr": 0.001,
+  "lr_decay": "none",
+  "gamma": 0.9,
+  "clip_eps": 0.2,
+  "value_coef": 0.5,
+  "entropy_coef": 0.001,
+  "max_grad_norm": 0.5,
+  "skip_dead_zone": 0.1,
+  "num_epochs": 500,
+  "ppo_epochs": 4,
+  "log_every": 10,
+  "seed": 1,
+  "device": "cpu",
+  "results_dir": "/Users/shyamamin/Desktop/DRL for IRP Optimisation/src/results",
+  "run_name": "seed1",
+  "checkpoint_every": 25,
+  "eval_every": 25
+}
