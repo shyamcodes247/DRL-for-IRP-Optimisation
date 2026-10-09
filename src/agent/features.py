@@ -140,7 +140,9 @@ def build_inventory_features(
     return torch.from_numpy(features).float()
 
 def build_routing_features(
-    obs: Dict[str, npt.NDArray], retailer_scale: Optional[npt.NDArray] = None
+    obs: Dict[str, npt.NDArray],
+    retailer_scale: Optional[npt.NDArray] = None,
+    include_position: bool = True,
 ) -> torch.Tensor:
     """
     Flattens a routing-actor observation dict (see
@@ -166,6 +168,10 @@ def build_routing_features(
     node infeasible. Add it if that constraint is ever relaxed.
 
     Args:
+        include_position: When False, drops the displacement and is-current
+            columns, leaving `(location, replenishment)` -- the feature set
+            Lu et al. (2025) specify. Used to measure the published design as
+            an ablation; see `--no-position-features`.
         obs: Routing observation dict. `location` is (num_retailers+1,
             loc_dim) (depot + retailers); `replenishment_amount` is
             (num_retailers,) and is padded with a leading `0.0` for the
@@ -181,9 +187,17 @@ def build_routing_features(
     """
     loc = obs["location"]
     position = int(obs["vehicle_position"])
-    displacement = loc - loc[position]
     scaled_replenishment = _scaled(obs["replenishment_amount"][:, None], retailer_scale)
     replenishment = np.concatenate([[[0.0]], scaled_replenishment])
+    if not include_position:
+        # Lu et al. (2025) as published: Eq. (30) initialises the GIN with
+        # location and replenishment quantity only. Kept so the published
+        # design can be measured rather than described -- every node's row is
+        # then independent of where the vehicle stands, so the decoder can
+        # only ever emit one fixed priority order over nodes.
+        features = np.hstack([loc, replenishment])
+        return torch.from_numpy(features).float()
+    displacement = loc - loc[position]
     is_current = np.zeros((loc.shape[0], 1))
     is_current[position] = 1.0
     features = np.hstack([loc, displacement, replenishment, is_current])

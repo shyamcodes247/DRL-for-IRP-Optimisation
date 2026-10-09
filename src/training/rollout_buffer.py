@@ -82,6 +82,11 @@ class RolloutBuffer:
         # from `advantages` because the routing actor is scored against a
         # different baseline — see the class NOTE.
         self.routing_advantages: List[float] = []
+        # When True, routing hops are scored with the shared advantage instead
+        # of the self-critical one -- Lu et al. (2025) as published. Set by
+        # `MTPPO.collect_episode`; survives `clear()`, which empties data, not
+        # configuration.
+        self.shared_routing_advantage: bool = False
 
     def add_timestep(
         self,
@@ -249,9 +254,8 @@ class RolloutBuffer:
                 "mask": self.routing_masks[i],
                 "action": self.routing_actions[i],
                 "old_log_prob": self.routing_logprobs[i],
-                "advantage": torch.as_tensor(
-                    self.routing_advantages[t], dtype=torch.float32
-                ),
+                "advantage": self.advantages[t] if self.shared_routing_advantage
+                else torch.as_tensor(self.routing_advantages[t], dtype=torch.float32),
             })
 
         order = np.random.permutation(num_timesteps)

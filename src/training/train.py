@@ -273,6 +273,22 @@ def parse_args() -> argparse.Namespace:
         "without affecting what the policy learns.",
     )
 
+    parser.add_argument(
+        "--no-position-features",
+        dest="routing_uses_position",
+        action="store_false",
+        help="Build routing node features as Lu et al. (2025) specify -- location and "
+        "replenishment only, with no displacement from the vehicle's current node. "
+        "Every node's features are then independent of where the vehicle stands, so "
+        "the policy can only emit a fixed priority order. For ablations.",
+    )
+    parser.add_argument(
+        "--shared-routing-advantage",
+        action="store_true",
+        help="Score routing hops with the shared advantage (Lu et al., 2025, Eq. 35) "
+        "instead of the self-critical baseline. For ablations.",
+    )
+
     parser.add_argument("--loc-dim", type=int, default=2)
     parser.add_argument("--lookback-window", type=int, default=3)
     parser.add_argument(
@@ -453,7 +469,8 @@ def main() -> None:
         "critic": args.loc_dim + 6,
         "inventory": args.loc_dim + 3,
         # location + displacement-from-current-node + replenishment + is-current
-        "routing": 2 * args.loc_dim + 2,
+        "routing": (2 * args.loc_dim + 2) if args.routing_uses_position
+        else (args.loc_dim + 1),
     }
     history_dim = 1 + 2 * args.lookback_window
     embed_dim = args.loc_dim + 2 * args.lookback_window
@@ -473,6 +490,8 @@ def main() -> None:
         entropy_coef=args.entropy_coef,
         max_grad_norm=args.max_grad_norm,
         skip_dead_zone=args.skip_dead_zone,
+        routing_uses_position=args.routing_uses_position,
+        shared_routing_advantage=args.shared_routing_advantage,
         device=args.device,
     )
 

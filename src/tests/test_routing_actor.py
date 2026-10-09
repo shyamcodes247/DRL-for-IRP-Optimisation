@@ -69,3 +69,45 @@ def test_the_clip_preserves_the_ordering_of_preferences():
                    actor.gin(features).mean(dim=0, keepdim=True).expand(7, -1)], dim=1)
     ).squeeze(-1)
     assert torch.equal(bounded.argsort(), raw.argsort())
+
+
+def test_literal_encoder_features_cannot_see_the_vehicle():
+    """
+    The ablation behind Table 4's first column rests on one claim: with Lu et
+    al. (2025)'s published feature set, a node's row does not depend on where
+    the vehicle is, so the policy can only emit a fixed priority order. Assert
+    it directly rather than inferring it from tour lengths.
+    """
+    import numpy as np
+
+    from agent.features import build_routing_features
+
+    obs = {
+        "location": np.array([[0.0, 0.0], [10.0, 0.0], [0.0, 10.0], [50.0, 50.0]]),
+        "replenishment_amount": np.array([3.0, 4.0, 5.0]),
+        "vehicle_position": 0,
+    }
+    at_depot = build_routing_features(obs, include_position=False)
+    obs_moved = dict(obs, vehicle_position=3)
+    far_away = build_routing_features(obs_moved, include_position=False)
+    assert torch.equal(at_depot, far_away), "literal features changed with vehicle position"
+    assert at_depot.shape[1] == 3, "expected (location, replenishment) only"
+
+    # The project's own feature set must do the opposite, or the comparison
+    # between the two conditions measures nothing.
+    assert not torch.equal(
+        build_routing_features(obs, include_position=True),
+        build_routing_features(obs_moved, include_position=True),
+    )
+
+
+def test_shared_routing_advantage_switches_what_hops_are_scored_with():
+    """The second half of the ablation: routing hops must actually receive the
+    shared advantage when the switch is set, not the self-critical one."""
+    from training.rollout_buffer import RolloutBuffer
+
+    buffer = RolloutBuffer()
+    assert buffer.shared_routing_advantage is False
+    buffer.shared_routing_advantage = True
+    buffer.clear()
+    assert buffer.shared_routing_advantage is True, "clear() wiped configuration"

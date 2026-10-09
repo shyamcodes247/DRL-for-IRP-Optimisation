@@ -66,6 +66,8 @@ class MTPPO:
         max_grad_norm: float = 0.5,
         device: str = "cpu",
         skip_dead_zone: float = 0.1,
+        routing_uses_position: bool = True,
+        shared_routing_advantage: bool = False,
     ) -> None:
         """
         Args:
@@ -101,6 +103,15 @@ class MTPPO:
         """
         self.loc_dim = loc_dim
         self.skip_dead_zone = skip_dead_zone
+        # Ablation switches for reproducing Lu et al. (2025) as published.
+        # `routing_uses_position=False` drops the displacement/is-current
+        # columns from the routing features (their Eq. 30);
+        # `shared_routing_advantage=True` scores routing hops with the shared
+        # advantage rather than the self-critical one (their Eq. 35). Both
+        # default to this project's modified behaviour.
+        self.routing_uses_position = routing_uses_position
+        self.shared_routing_advantage = shared_routing_advantage
+        self._routing_coord_cols = (2 if routing_uses_position else 1) * loc_dim
         self.gamma = gamma
         self.clip_eps = clip_eps
         self.value_coef = value_coef
@@ -309,6 +320,10 @@ class MTPPO:
             Dict with this episode's summed inventory reward, routing
             reward, and their total (all as plain floats, for logging).
         """
+        # Configuration, not data: survives the buffer's clear() between epochs,
+        # but set here so a buffer handed to a differently-configured agent
+        # cannot silently keep the previous one's scoring rule.
+        buffer.shared_routing_advantage = self.shared_routing_advantage
         _, critic_obs, _ = env.reset()
         total_r_inv, total_r_vrp = 0.0, 0.0
         terminated = False
@@ -372,9 +387,11 @@ class MTPPO:
 
                 while True:
                     route_node_feats = self._normalize_location(
-                        build_routing_features(routing_obs, retailer_scale),
+                        build_routing_features(
+                            routing_obs, retailer_scale, self.routing_uses_position
+                        ),
                         scale,
-                        num_coord_cols=2 * self.loc_dim,
+                        num_coord_cols=self._routing_coord_cols,
                     ).to(self.device)
                     mask = torch.from_numpy(routing_obs["visited_mask"]).to(self.device)
                     route_action, route_logp, logit_spread = self.routing_actor.act(
@@ -543,9 +560,11 @@ class MTPPO:
                 guard = 0
                 while True:
                     route_node_feats = self._normalize_location(
-                        build_routing_features(routing_obs, retailer_scale),
+                        build_routing_features(
+                            routing_obs, retailer_scale, self.routing_uses_position
+                        ),
                         scale,
-                        num_coord_cols=2 * self.loc_dim,
+                        num_coord_cols=self._routing_coord_cols,
                     ).to(self.device)
                     mask = torch.from_numpy(routing_obs["visited_mask"]).to(self.device)
                     logits = self.routing_actor(route_node_feats).masked_fill(mask == 1, float("-inf"))
