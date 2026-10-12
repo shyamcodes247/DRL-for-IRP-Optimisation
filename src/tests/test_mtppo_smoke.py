@@ -116,3 +116,59 @@ def test_route_log_without_diagnostics_is_refused():
     )
     with pytest.raises(ValueError, match="collect_diagnostics"):
         mtppo.evaluate_episode(env, route_log=[], collect_diagnostics=False)
+
+
+def test_joint_normalisation_preserves_the_cost_exchange_rate():
+    """
+    The IRP objective is a plain sum of holding and routing cost in raw units
+    (Appendix A, Eq. A.3). Normalising their sum is an affine map of that
+    objective, so it ranks periods exactly as the objective does. Z-scoring the
+    streams separately is not affine when their spreads differ: it equalises
+    their variances, silently repricing holding against distance.
+
+    The case below is a real misranking found by search, not a constructed
+    pathology -- holding varies tightly while routing varies widely, which is
+    the regime the training data is actually in (measured sd 841.8 vs 1268.3).
+    """
+    import numpy as np
+
+    from training.rollout_buffer import RolloutBuffer
+
+    holding = np.array([-102.7, -95.4, -90.8, -90.3])
+    routing = np.array([-2495.8, -2764.4, -1937.9, -2269.6])
+    true_total = holding + routing
+
+    separate = RolloutBuffer._normalize_rewards(holding) + RolloutBuffer._normalize_rewards(routing)
+    joint = RolloutBuffer._normalize_rewards(holding + routing)
+
+    # Joint is affine in the objective: identical ranking, correlation 1.
+    assert np.corrcoef(joint, true_total)[0, 1] == pytest.approx(1.0)
+    assert list(np.argsort(joint)) == list(np.argsort(true_total))
+
+    # Separate is not, and here it reverses periods 0 and 1 outright: period 0
+    # is genuinely cheaper, but the distorted reward calls it worse.
+    assert true_total[0] > true_total[1]
+    assert separate[0] < separate[1]
+    assert np.corrcoef(separate, true_total)[0, 1] < 0.95
+
+
+def test_joint_normalisation_flag_reaches_the_buffer():
+    """The switch has to survive the hand-off from agent to buffer, or a run
+    configured for it would silently train with the old objective."""
+    from training.rollout_buffer import RolloutBuffer
+
+    buffer = RolloutBuffer()
+    assert buffer.joint_reward_normalisation is False
+    mtppo = _build_mtppo()
+    assert mtppo.joint_reward_normalisation is False
+
+    env = IRPEnv(
+        data_file_path=TEST_INSTANCE_PATHS[0],
+        loc_dim=LOC_DIM,
+        lookback_window=LOOKBACK_WINDOW,
+        product_price=None,
+        penalty_factor=None,
+    )
+    mtppo.joint_reward_normalisation = True
+    mtppo.collect_episode(env, buffer)
+    assert buffer.joint_reward_normalisation is True

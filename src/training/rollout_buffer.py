@@ -87,6 +87,14 @@ class RolloutBuffer:
         # `MTPPO.collect_episode`; survives `clear()`, which empties data, not
         # configuration.
         self.shared_routing_advantage: bool = False
+        # When True, the two reward streams are summed in raw units and
+        # normalised once, instead of being z-scored separately and then
+        # summed. Separate z-scoring equalises the streams' variances, which
+        # silently reprices one unit of holding cost against one unit of
+        # distance -- measured at 1.51x over-weighting of holding on a trained
+        # checkpoint. The IRP objective (Appendix A, Eq. A.3) is a plain sum of
+        # the two in raw units, so joint normalisation is the faithful one.
+        self.joint_reward_normalisation: bool = False
 
     def add_timestep(
         self,
@@ -199,7 +207,10 @@ class RolloutBuffer:
             r_vrp_per_timestep[t] += reward
 
         r_inv_arr = np.asarray(self.r_inv, dtype=np.float64)
-        r_combined = self._normalize_rewards(r_inv_arr) + self._normalize_rewards(r_vrp_per_timestep)
+        if self.joint_reward_normalisation:
+            r_combined = self._normalize_rewards(r_inv_arr + r_vrp_per_timestep)
+        else:
+            r_combined = self._normalize_rewards(r_inv_arr) + self._normalize_rewards(r_vrp_per_timestep)
         self.returns, self.advantages = self._discounted_returns_and_advantages(r_combined.tolist(), gamma)
 
     @staticmethod
