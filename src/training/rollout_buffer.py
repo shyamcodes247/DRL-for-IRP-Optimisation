@@ -87,14 +87,6 @@ class RolloutBuffer:
         # `MTPPO.collect_episode`; survives `clear()`, which empties data, not
         # configuration.
         self.shared_routing_advantage: bool = False
-        # When True, the two reward streams are summed in raw units and
-        # normalised once, instead of being z-scored separately and then
-        # summed. Separate z-scoring equalises the streams' variances, which
-        # silently reprices one unit of holding cost against one unit of
-        # distance -- measured at 1.51x over-weighting of holding on a trained
-        # checkpoint. The IRP objective (Appendix A, Eq. A.3) is a plain sum of
-        # the two in raw units, so joint normalisation is the faithful one.
-        self.joint_reward_normalisation: bool = False
 
     def add_timestep(
         self,
@@ -207,10 +199,16 @@ class RolloutBuffer:
             r_vrp_per_timestep[t] += reward
 
         r_inv_arr = np.asarray(self.r_inv, dtype=np.float64)
-        if self.joint_reward_normalisation:
-            r_combined = self._normalize_rewards(r_inv_arr + r_vrp_per_timestep)
-        else:
-            r_combined = self._normalize_rewards(r_inv_arr) + self._normalize_rewards(r_vrp_per_timestep)
+        # NOTE: the two streams are z-scored separately, which equalises their
+        # variances and so reprices holding cost against distance -- measured at
+        # 1.51x over-weighting of holding, correlation 0.9908 with the true
+        # per-period total. Normalising their sum instead is the faithful
+        # reading of the objective and was screened in October 2026: it made
+        # total cost WORSE (9,486 -> 9,965 on the held-out set), because
+        # equalising the variances also compresses routing, whose spread is the
+        # larger, and routing cost is what visits are made of. Kept as-is for
+        # that reason, not by oversight. See reports/reward_fix_screen.md.
+        r_combined = self._normalize_rewards(r_inv_arr) + self._normalize_rewards(r_vrp_per_timestep)
         self.returns, self.advantages = self._discounted_returns_and_advantages(r_combined.tolist(), gamma)
 
     @staticmethod

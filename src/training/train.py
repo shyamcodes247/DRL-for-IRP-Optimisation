@@ -283,15 +283,6 @@ def parse_args() -> argparse.Namespace:
         "the policy can only emit a fixed priority order. For ablations.",
     )
     parser.add_argument(
-        "--joint-reward-normalisation",
-        action="store_true",
-        help="Sum the inventory and routing rewards in raw units and normalise once, "
-        "instead of z-scoring each stream before summing. Separate z-scoring equalises "
-        "the two streams' variances and so reprices holding cost against distance "
-        "(measured: holding over-weighted 1.51x); the IRP objective is a plain sum of "
-        "the two. Pair with --gamma 1.0 to optimise the undiscounted objective.",
-    )
-    parser.add_argument(
         "--shared-routing-advantage",
         action="store_true",
         help="Score routing hops with the shared advantage (Lu et al., 2025, Eq. 35) "
@@ -501,7 +492,6 @@ def main() -> None:
         skip_dead_zone=args.skip_dead_zone,
         routing_uses_position=args.routing_uses_position,
         shared_routing_advantage=args.shared_routing_advantage,
-        joint_reward_normalisation=args.joint_reward_normalisation,
         device=args.device,
     )
 

@@ -118,13 +118,22 @@ def test_route_log_without_diagnostics_is_refused():
         mtppo.evaluate_episode(env, route_log=[], collect_diagnostics=False)
 
 
-def test_joint_normalisation_preserves_the_cost_exchange_rate():
+def test_separate_reward_normalisation_distorts_the_cost_exchange_rate():
     """
+    Documents a known, deliberate limitation rather than a bug.
+
     The IRP objective is a plain sum of holding and routing cost in raw units
-    (Appendix A, Eq. A.3). Normalising their sum is an affine map of that
-    objective, so it ranks periods exactly as the objective does. Z-scoring the
-    streams separately is not affine when their spreads differ: it equalises
-    their variances, silently repricing holding against distance.
+    (Appendix A, Eq. A.3). `compute_advantage` z-scores the two streams
+    separately before summing, which is not an affine map of that objective
+    when their spreads differ: it equalises their variances, repricing holding
+    against distance. On real data that is a 1.51x over-weighting of holding,
+    correlation 0.9908 with the true per-period total.
+
+    Normalising the sum instead would remove the distortion, and was screened
+    in October 2026: it made total cost worse, because equalising the variances
+    also compresses routing, whose spread is the larger one. See
+    reports/reward_fix_screen.md. This test exists so the distortion stays
+    visible and measured rather than being rediscovered as a surprise.
 
     The case below is a real misranking found by search, not a constructed
     pathology -- holding varies tightly while routing varies widely, which is
@@ -150,25 +159,3 @@ def test_joint_normalisation_preserves_the_cost_exchange_rate():
     assert true_total[0] > true_total[1]
     assert separate[0] < separate[1]
     assert np.corrcoef(separate, true_total)[0, 1] < 0.95
-
-
-def test_joint_normalisation_flag_reaches_the_buffer():
-    """The switch has to survive the hand-off from agent to buffer, or a run
-    configured for it would silently train with the old objective."""
-    from training.rollout_buffer import RolloutBuffer
-
-    buffer = RolloutBuffer()
-    assert buffer.joint_reward_normalisation is False
-    mtppo = _build_mtppo()
-    assert mtppo.joint_reward_normalisation is False
-
-    env = IRPEnv(
-        data_file_path=TEST_INSTANCE_PATHS[0],
-        loc_dim=LOC_DIM,
-        lookback_window=LOOKBACK_WINDOW,
-        product_price=None,
-        penalty_factor=None,
-    )
-    mtppo.joint_reward_normalisation = True
-    mtppo.collect_episode(env, buffer)
-    assert buffer.joint_reward_normalisation is True

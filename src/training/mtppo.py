@@ -68,7 +68,6 @@ class MTPPO:
         skip_dead_zone: float = 0.1,
         routing_uses_position: bool = True,
         shared_routing_advantage: bool = False,
-        joint_reward_normalisation: bool = False,
     ) -> None:
         """
         Args:
@@ -112,7 +111,6 @@ class MTPPO:
         # default to this project's modified behaviour.
         self.routing_uses_position = routing_uses_position
         self.shared_routing_advantage = shared_routing_advantage
-        self.joint_reward_normalisation = joint_reward_normalisation
         self._routing_coord_cols = (2 if routing_uses_position else 1) * loc_dim
         self.gamma = gamma
         self.clip_eps = clip_eps
@@ -326,7 +324,6 @@ class MTPPO:
         # but set here so a buffer handed to a differently-configured agent
         # cannot silently keep the previous one's scoring rule.
         buffer.shared_routing_advantage = self.shared_routing_advantage
-        buffer.joint_reward_normalisation = self.joint_reward_normalisation
         _, critic_obs, _ = env.reset()
         total_r_inv, total_r_vrp = 0.0, 0.0
         terminated = False
