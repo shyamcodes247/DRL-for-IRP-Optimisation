@@ -347,6 +347,58 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--clip-eps", type=float, default=0.2)
     parser.add_argument("--value-coef", type=float, default=0.5)
     parser.add_argument("--entropy-coef", type=float, default=0.001)
+    parser.add_argument(
+        "--inventory-choices", type=str, default=None,
+        help="Comma-separated fractions the inventory actor chooses between, e.g. "
+        "'0,0.5,1'. Replaces the continuous Beta with a Categorical over exactly these "
+        "values, and bypasses both dead zones (0 is already exactly the minimum and 1 "
+        "exactly a full top-up). Off by default. Exists because fraction 1.0 -- the only "
+        "delivery that lets a U_i = 2 r_i retailer be skipped next period -- has measure "
+        "zero under a Beta and is unreachable by its mean.",
+    )
+    parser.add_argument(
+        "--upper-dead-zone", type=float, default=None,
+        help="Fraction at or above which a retailer is topped up to U_i exactly. Off by "
+        "default, which keeps the current mapping where only exactly 1.0 fills completely. "
+        "Exists because a g=2 retailer (U_i = 2 r_i) can only be skipped the next period "
+        "after an exact full fill: at 0.99 it is left short by ~0.1 units and the vehicle "
+        "drives out to deliver them. Measured: f=0.999999 cost the same as f=0.75, while "
+        "f=1.0 saved 1,233 routing units. Watch high_fraction_share -- the Beta's mean is "
+        "capped at alpha/(alpha+1) and a trained checkpoint tops out around 0.78, so a "
+        "threshold of 0.9 may never be reached.",
+    )
+    parser.add_argument(
+        "--kl-coeff", type=float, default=0.0,
+        help="Initial coefficient (beta) on the KL penalty between the old and new "
+        "policy, added to each actor's loss alongside the clipped surrogate. 0.0 "
+        "disables it; Lu et al. (2025, Table 3) use 0.2. Each actor carries its own "
+        "beta from this starting value.",
+    )
+    parser.add_argument(
+        "--kl-target", type=float, default=0.01,
+        help="KL the adaptive rule aims for. Lu et al. do not state one; 0.01 is "
+        "RLlib's default. The inventory actor is compared against this on its "
+        "PER-RETAILER KL (its log-prob is summed over retailers, so the summed KL "
+        "scales with instance size); the routing actor on its per-hop KL.",
+    )
+    parser.add_argument(
+        "--kl-adaptive", action=argparse.BooleanOptionalAction, default=None,
+        help="Adapt beta after each training iteration (RLlib's rule: x1.5 above "
+        "twice the target, x0.5 below half). Defaults to on whenever --kl-coeff > 0.",
+    )
+    parser.add_argument(
+        "--vf-clip-param", type=float, default=None,
+        help="RLlib-style cap on each sample's squared value error. Off by default. "
+        "Lu et al. use 0.1, but note the cap has zero gradient above it, so capped "
+        "samples stop training the critic entirely -- and it is sensitive to the "
+        "scale of the returns, which are z-scored here. Watch vf_clip_fraction.",
+    )
+    parser.add_argument(
+        "--target-kl-early-stop", type=float, default=None,
+        help="If set, an actor sits out the remaining PPO passes over a batch once "
+        "its KL exceeds this value (per-retailer for inventory, per-hop for routing). "
+        "Off by default.",
+    )
     parser.add_argument("--max-grad-norm", type=float, default=0.5)
     parser.add_argument(
         "--skip-dead-zone",
@@ -492,6 +544,16 @@ def main() -> None:
         skip_dead_zone=args.skip_dead_zone,
         routing_uses_position=args.routing_uses_position,
         shared_routing_advantage=args.shared_routing_advantage,
+        upper_dead_zone=args.upper_dead_zone,
+        inventory_choices=(
+            [float(x) for x in args.inventory_choices.split(",")]
+            if args.inventory_choices else None
+        ),
+        kl_coeff=args.kl_coeff,
+        kl_target=args.kl_target,
+        kl_adaptive=args.kl_adaptive,
+        vf_clip_param=args.vf_clip_param,
+        target_kl_early_stop=args.target_kl_early_stop,
         device=args.device,
     )
 

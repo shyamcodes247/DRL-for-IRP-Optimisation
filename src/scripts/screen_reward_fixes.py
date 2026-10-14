@@ -90,6 +90,11 @@ def build_agent(config: Dict[str, Any], checkpoint: Path) -> MTPPO:
     """Rebuilds the agent from a run's own logged config, as train.py built it."""
     loc_dim, lookback = config["loc_dim"], config["lookback_window"]
     uses_position = config.get("routing_uses_position", True)
+    # A discrete-choice run's decoder has one output per choice, so the actor
+    # must be rebuilt with the same action set or the state dict will not load.
+    raw_choices = config.get("inventory_choices")
+    if isinstance(raw_choices, str):
+        raw_choices = [float(x) for x in raw_choices.split(",")]
     agent = MTPPO(
         node_feature_dims={
             "critic": loc_dim + 6,
@@ -104,6 +109,8 @@ def build_agent(config: Dict[str, Any], checkpoint: Path) -> MTPPO:
         loc_dim=loc_dim,
         gamma=config["gamma"],
         skip_dead_zone=config["skip_dead_zone"],
+        upper_dead_zone=config.get("upper_dead_zone"),
+        inventory_choices=raw_choices,
         routing_uses_position=uses_position,
         device="cpu",
     )
