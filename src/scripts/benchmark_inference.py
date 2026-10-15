@@ -24,9 +24,9 @@ diagnostics on, so the quality figures carry the full breakdown.
 
 Usage:
     python src/scripts/benchmark_inference.py \
-        --run-dir src/results/seed0_20261001_172956 \
-        --run-dir src/results/seed1_20261001_172956 \
-        --run-dir src/results/seed2_20261001_172955
+        --run-dir "src/results/seed0_20261007_130952:mtppo_epoch325.pt" \
+        --run-dir "src/results/seed1_20261007_130952:mtppo_epoch450.pt" \
+        --run-dir "src/results/seed2_20261007_130952:mtppo_epoch450.pt"
 """
 
 import argparse
