@@ -1,6 +1,6 @@
 # Inventory reward fixes: a negative result
 
-Screened 2026-10-10. Per-epoch data in [`reward_fix_screen.csv`](reward_fix_screen.csv)
+Screened 2026-10-10. Per-epoch data in [`screen.csv`](screen.csv)
 (39 rows, run x epoch). Regenerate with `src/scripts/screen_reward_fixes.py`.
 
 **Both candidate fixes made total cost worse. Neither was adopted.** The

@@ -17,7 +17,8 @@ Nothing in the training or evaluation path is modified or re-run; this reads
 saved checkpoints only.
 
 Usage:
-    python src/scripts/screen_reward_fixes.py --out reports/reward_fix_screen.csv
+    python src/scripts/screen_reward_fixes.py \
+        --out reports/experiments/<name>/screen.csv
 """
 
 import argparse
@@ -281,7 +282,8 @@ def main() -> None:
     ap.add_argument("--run-dir", action="append", required=True)
     ap.add_argument("--epochs", default="25-300")
     ap.add_argument("--step", type=int, default=25)
-    ap.add_argument("--out", default=str(ROOT / "reports" / "reward_fix_screen.csv"))
+    ap.add_argument("--out",
+                    default=str(ROOT / "reports" / "experiments" / "reward_normalisation" / "screen.csv"))
     ap.add_argument("--verify", action="store_true", default=True)
     args = ap.parse_args()
 

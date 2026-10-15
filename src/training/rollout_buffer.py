@@ -207,7 +207,8 @@ class RolloutBuffer:
         # total cost WORSE (9,486 -> 9,965 on the held-out set), because
         # equalising the variances also compresses routing, whose spread is the
         # larger, and routing cost is what visits are made of. Kept as-is for
-        # that reason, not by oversight. See reports/reward_fix_screen.md.
+        # that reason, not by oversight. See
+        # reports/experiments/reward_normalisation/README.md.
         r_combined = self._normalize_rewards(r_inv_arr) + self._normalize_rewards(r_vrp_per_timestep)
         self.returns, self.advantages = self._discounted_returns_and_advantages(r_combined.tolist(), gamma)
 

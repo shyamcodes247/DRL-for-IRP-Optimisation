@@ -62,7 +62,7 @@ from training.mtppo import MTPPO
 from training.routing_diagnostics import distance_matrix, tour_length, two_opt_tour
 
 ROOT = Path(__file__).resolve().parents[2]
-OUT_DIR = ROOT / "reports" / "fixed_fraction"
+OUT_DIR = ROOT / "reports" / "experiments" / "fixed_fraction"
 
 # Archetti et al. (2007) Table IX, "Total cost" column: percent variation of the
 # VMIR-ML optimum relative to VMIR-OU. Class averages over the per-size rows,

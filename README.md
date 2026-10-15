@@ -80,7 +80,10 @@ data/
   Instances_{low,high}cost_H{3,6}/   Archetti et al. (2007)'s benchmark instances
   splits/                            train/val/eval manifests, by replicate
   benchmarks/                        published results transcribed from the paper
-reports/           committed write-ups and their data (not run output)
+reports/
+  inference_timing.*   speed against Archetti et al.'s branch-and-cut
+  training_runs/       per-epoch logs for the three published seeds
+  experiments/         one directory per screening experiment (see its README)
 ```
 
 Note the distinction between `src/results/` and `reports/`: the former holds

@@ -132,7 +132,8 @@ def test_separate_reward_normalisation_distorts_the_cost_exchange_rate():
     Normalising the sum instead would remove the distortion, and was screened
     in October 2026: it made total cost worse, because equalising the variances
     also compresses routing, whose spread is the larger one. See
-    reports/reward_fix_screen.md. This test exists so the distortion stays
+    reports/experiments/reward_normalisation/README.md. This test exists so
+    the distortion stays
     visible and measured rather than being rediscovered as a surprise.
 
     The case below is a real misranking found by search, not a constructed
